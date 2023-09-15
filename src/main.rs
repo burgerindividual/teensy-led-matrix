@@ -1,8 +1,10 @@
 #![feature(core_intrinsics)]
 #![feature(variant_count)]
+#![feature(stdsimd)]
 #![no_std]
 #![no_main]
 
+use core::hint::spin_loop;
 use core::intrinsics::*;
 use core::sync::atomic::{fence, Ordering};
 
@@ -26,6 +28,9 @@ pub const SHIFT_COUNT: u8 = (HEIGHT * COLOR_COUNT) as u8;
 pub const GPIO6_PIN_MASK: u32 = get_pin_mask(OutputGpio::Gpio6);
 pub const GPIO7_PIN_MASK: u32 = get_pin_mask(OutputGpio::Gpio7);
 pub const GPIO9_PIN_MASK: u32 = (1 << P2::OFFSET) | (1 << P3::OFFSET);
+
+/// Probably very bad, gets rid of the memory barriers in exchange for a single yield instruction.
+pub const FAST_MODE: bool = true;
 
 pub const fn get_pin_mask(gpio: OutputGpio) -> u32 {
     let mut mask = 0_u32;
@@ -129,11 +134,11 @@ fn main() -> ! {
         // framebuffer.set_led_unchecked(0, 2, 0.0, 1.0, 0.0);
         // framebuffer.set_led_unchecked(0, 3, 0.0, 0.0, 1.0);
         // framebuffer.set_led_unchecked(0, 4, 1.0, 0.0, 1.0);
-        framebuffer.set_led_unchecked(0, 0, 0.00003, 0.0, 0.0);
-        framebuffer.set_led_unchecked(0, 1, 0.00003, 0.00003, 0.0);
-        framebuffer.set_led_unchecked(0, 2, 0.0, 0.00003, 0.0);
-        framebuffer.set_led_unchecked(0, 3, 0.0, 0.0, 0.00003);
-        framebuffer.set_led_unchecked(0, 4, 0.00003, 0.0, 0.00003);
+        framebuffer.set_led_unchecked(0, 0, 0.00001, 0.0, 0.0);
+        framebuffer.set_led_unchecked(0, 1, 0.00001, 0.00001, 0.0);
+        framebuffer.set_led_unchecked(0, 2, 0.0, 0.00001, 0.0);
+        framebuffer.set_led_unchecked(0, 3, 0.0, 0.0, 0.00001);
+        framebuffer.set_led_unchecked(0, 4, 0.00001, 0.0, 0.00001);
     }
 
     loop {
@@ -168,12 +173,18 @@ fn main() -> ! {
             clock_pulse |= if current_bit == 0 { 1 << P3::OFFSET } else { 0 };
 
             // 110ns delay?
-            fence(Ordering::Release);
+            if !FAST_MODE {
+                fence(Ordering::Release);
+            }
 
             write_reg!(ral::gpio, instances.GPIO9, DR, clock_pulse);
 
             // 125ns delay?
-            fence(Ordering::Release);
+            if !FAST_MODE {
+                fence(Ordering::Release);
+            } else {
+                spin_loop();
+            }
 
             write_reg!(ral::gpio, instances.GPIO9, DR, 0);
 
