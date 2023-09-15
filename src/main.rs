@@ -25,142 +25,67 @@ pub const HEIGHT: usize = 5;
 pub const COLOR_COUNT: usize = variant_count::<Colors>();
 pub const SHIFT_COUNT: u8 = (HEIGHT * COLOR_COUNT) as u8;
 
-pub const GPIO6_PIN_MASK: u32 = get_pin_mask(OutputGpio::Gpio6);
-pub const GPIO7_PIN_MASK: u32 = get_pin_mask(OutputGpio::Gpio7);
+pub const GPIO6_PIN_MASK: u32 = get_pin_mask(&GPIO6_PINS);
+pub const GPIO7_PIN_MASK: u32 = get_pin_mask(&GPIO7_PINS);
 pub const GPIO9_PIN_MASK: u32 = (1 << P2::OFFSET) | (1 << P3::OFFSET);
 
 /// Probably very bad, gets rid of the memory barriers in exchange for a single yield instruction.
 pub const FAST_MODE: bool = true;
 
-pub const fn get_pin_mask(gpio: OutputGpio) -> u32 {
+pub const fn get_pin_mask(pins: &[OutputPin]) -> u32 {
     let mut mask = 0_u32;
 
     let mut i = 0;
-    while i < LED_OUTPUT_PINS.len() {
-        let pin = &LED_OUTPUT_PINS[i];
-        if pin.gpio as u8 == gpio as u8 {
-            mask |= 1 << pin.offset;
-        }
+    while i < pins.len() {
+        let pin = &pins[i];
+        mask |= 1 << pin.offset;
         i += 1;
     }
 
     mask
 }
 
-pub const LED_OUTPUT_PINS: [OutputPin; WIDTH] = [
-    OutputPin {
-        index: 0,
-        offset: P0::OFFSET,
-        gpio: OutputGpio::Gpio6,
-    },
-    OutputPin {
-        index: 1,
-        offset: P1::OFFSET,
-        gpio: OutputGpio::Gpio6,
-    },
-    OutputPin {
-        index: 6,
-        offset: P6::OFFSET,
-        gpio: OutputGpio::Gpio7,
-    },
-    OutputPin {
-        index: 7,
-        offset: P7::OFFSET,
-        gpio: OutputGpio::Gpio7,
-    },
-    OutputPin {
-        index: 8,
-        offset: P8::OFFSET,
-        gpio: OutputGpio::Gpio7,
-    },
-    OutputPin {
-        index: 9,
-        offset: P9::OFFSET,
-        gpio: OutputGpio::Gpio7,
-    },
-    OutputPin {
-        index: 10,
-        offset: P10::OFFSET,
-        gpio: OutputGpio::Gpio7,
-    },
-    OutputPin {
-        index: 11,
-        offset: P11::OFFSET,
-        gpio: OutputGpio::Gpio7,
-    },
-    OutputPin {
-        index: 12,
-        offset: P12::OFFSET,
-        gpio: OutputGpio::Gpio7,
-    },
-    OutputPin {
-        index: 13,
-        offset: P13::OFFSET,
-        gpio: OutputGpio::Gpio7,
-    },
-    OutputPin {
-        index: 14,
-        offset: P14::OFFSET,
-        gpio: OutputGpio::Gpio6,
-    },
-    OutputPin {
-        index: 15,
-        offset: P15::OFFSET,
-        gpio: OutputGpio::Gpio6,
-    },
-    OutputPin {
-        index: 16,
-        offset: P16::OFFSET,
-        gpio: OutputGpio::Gpio6,
-    },
-    OutputPin {
-        index: 17,
-        offset: P17::OFFSET,
-        gpio: OutputGpio::Gpio6,
-    },
-    OutputPin {
-        index: 18,
-        offset: P18::OFFSET,
-        gpio: OutputGpio::Gpio6,
-    },
-    OutputPin {
-        index: 19,
-        offset: P19::OFFSET,
-        gpio: OutputGpio::Gpio6,
-    },
-    OutputPin {
-        index: 20,
-        offset: P20::OFFSET,
-        gpio: OutputGpio::Gpio6,
-    },
-    OutputPin {
-        index: 21,
-        offset: P21::OFFSET,
-        gpio: OutputGpio::Gpio6,
-    },
-    OutputPin {
-        index: 22,
-        offset: P22::OFFSET,
-        gpio: OutputGpio::Gpio6,
-    },
-    OutputPin {
-        index: 23,
-        offset: P23::OFFSET,
-        gpio: OutputGpio::Gpio6,
-    },
+pub const GPIO6_PINS: [OutputPin; 12] = [
+    OutputPin::new(0, 0, P0::OFFSET),
+    OutputPin::new(1, 1, P1::OFFSET),
+    OutputPin::new(14, 10, P14::OFFSET),
+    OutputPin::new(15, 11, P15::OFFSET),
+    OutputPin::new(16, 12, P16::OFFSET),
+    OutputPin::new(17, 13, P17::OFFSET),
+    OutputPin::new(18, 14, P18::OFFSET),
+    OutputPin::new(19, 15, P19::OFFSET),
+    OutputPin::new(20, 16, P20::OFFSET),
+    OutputPin::new(21, 17, P21::OFFSET),
+    OutputPin::new(22, 18, P22::OFFSET),
+    OutputPin::new(23, 19, P23::OFFSET),
 ];
 
-#[repr(u8)]
+pub const GPIO7_PINS: [OutputPin; 8] = [
+    OutputPin::new(6, 2, P6::OFFSET),
+    OutputPin::new(7, 3, P7::OFFSET),
+    OutputPin::new(8, 4, P8::OFFSET),
+    OutputPin::new(9, 5, P9::OFFSET),
+    OutputPin::new(10, 6, P10::OFFSET),
+    OutputPin::new(11, 7, P11::OFFSET),
+    OutputPin::new(12, 8, P12::OFFSET),
+    OutputPin::new(13, 9, P13::OFFSET),
+];
+
 #[derive(Copy, Clone)]
-pub enum OutputGpio {
-    Gpio6 = 0,
-    Gpio7 = 1,
+pub struct OutputPin {
+    pin_index: usize,
+    led_x: usize,
+    offset: u32,
 }
 
-pub struct OutputPin {
-    index: usize,
-    offset: u32,
-    gpio: OutputGpio,
+impl OutputPin {
+    pub const fn new(pin_index: usize, led_x: usize, offset: u32) -> Self {
+        Self {
+            pin_index,
+            led_x,
+            offset,
+        }
+    }
 }
 
 #[repr(u8)]
@@ -177,10 +102,11 @@ pub struct LedFramebuffer {
 }
 
 impl LedFramebuffer {
-    pub const RED_MULTIPLIER: f32 = 1.0;
-    pub const GREEN_MULTIPLIER: f32 = 1.0;
-    pub const BLUE_MULTIPLIER: f32 = 1.0;
+    pub const RED_MULTIPLIER: f32 = 0.3;
+    pub const GREEN_MULTIPLIER: f32 = 0.3;
+    pub const BLUE_MULTIPLIER: f32 = 0.3;
 
+    /// # Safety this method is safe as long as led_x and led_y are within the bounds of the led grid
     pub unsafe fn set_led_unchecked(&mut self, led_x: usize, led_y: usize, r: f32, g: f32, b: f32) {
         // TODO: do color adjustments in here
 
@@ -230,8 +156,8 @@ fn main() -> ! {
     let pins = from_pads(iomuxc);
 
     let mut erased_pins = pins.erase();
-    for pin in LED_OUTPUT_PINS {
-        pin_setup(&mut erased_pins[pin.index]);
+    for pin in GPIO6_PINS.iter().chain(GPIO7_PINS.iter()) {
+        pin_setup(&mut erased_pins[pin.pin_index]);
     }
 
     // set directions for gpio pins
@@ -284,11 +210,11 @@ fn main() -> ! {
                 0.05 * multiplier,
             );
         }
-        framebuffer.set_led_unchecked(0, 0, 0.01, 0.01, 0.01);
-        framebuffer.set_led_unchecked(0, 1, 0.01, 0.01, 0.01);
-        framebuffer.set_led_unchecked(0, 2, 0.01, 0.01, 0.01);
-        framebuffer.set_led_unchecked(0, 3, 0.01, 0.01, 0.01);
-        framebuffer.set_led_unchecked(0, 4, 0.01, 0.01, 0.01);
+        framebuffer.set_led_unchecked(0, 0, 0.0075, 0.0075, 0.0075);
+        framebuffer.set_led_unchecked(0, 1, 0.0075, 0.0075, 0.0075);
+        framebuffer.set_led_unchecked(0, 2, 0.0075, 0.0075, 0.0075);
+        framebuffer.set_led_unchecked(0, 3, 0.0075, 0.0075, 0.0075);
+        framebuffer.set_led_unchecked(0, 4, 0.0075, 0.0075, 0.0075);
     }
 
     loop {
@@ -303,17 +229,20 @@ fn main() -> ! {
             let mut gpio6_out_buffer = 0_u32;
             let mut gpio7_out_buffer = 0_u32;
 
-            for (i, pin) in LED_OUTPUT_PINS.iter().enumerate() {
-                let output_buffer = match pin.gpio {
-                    OutputGpio::Gpio6 => &mut gpio6_out_buffer,
-                    OutputGpio::Gpio7 => &mut gpio7_out_buffer,
-                };
-
-                let current_value = current_values.get_unchecked_mut(i);
-                let target_value = *target_values.get_unchecked(i);
+            for pin in GPIO6_PINS {
+                let current_value = current_values.get_unchecked_mut(pin.led_x);
+                let target_value = *target_values.get_unchecked(pin.led_x);
                 let pulse = pwm_pulse(current_value, target_value);
 
-                *output_buffer |= pulse << pin.offset;
+                gpio6_out_buffer |= pulse << pin.offset;
+            }
+
+            for pin in GPIO7_PINS {
+                let current_value = current_values.get_unchecked_mut(pin.led_x);
+                let target_value = *target_values.get_unchecked(pin.led_x);
+                let pulse = pwm_pulse(current_value, target_value);
+
+                gpio7_out_buffer |= pulse << pin.offset;
             }
 
             write_reg!(ral::gpio, instances.GPIO6, DR, gpio6_out_buffer);
