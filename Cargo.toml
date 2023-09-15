@@ -1,0 +1,19 @@
+[package]
+name = "teensy-led-matrix"
+version = "0.1.0"
+authors = ["burgerindividual"]
+edition = "2021"
+
+[dependencies]
+cortex-m = "0.7.7"
+embedded-hal = "0.2.7"
+teensy4-panic = "0.2.2"
+teensy4-bsp = {version = "0.4.3", features = ["rt"]}
+
+[profile.release]
+opt-level = 3
+lto = true
+
+[profile.asm]
+inherits = "release"
+lto = false

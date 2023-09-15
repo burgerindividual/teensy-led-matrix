@@ -1,0 +1,71 @@
+array of f32s for wanted value of pixel
+array of f32s for current pwm value of pixel
+
+https://godbolt.org/z/Yx7bYEqMY
+
+OE is always tied to high
+two shift registers are tied together, total 15 bits
+SER is input
+https://github.com/ManojBR105/Teensy-4.0_digital_parallel_read-write/blob/master/Teensy_4.0_digital_parallel_read_write.ino
+
+600000000 cycles / (125 cycles per iter * 15 bits * 60 fps)
+can't go under 25 cycles per pulse or the shift register will die
+
+write the contents of the pwm function all 20 data pins
+set SRCLR high (probably should be a separate write)
+increment counter
+if counter hits 15 bits, set RCLK high (may need to wait another iteration for this)
+
+have a separate timer for frames, if the frame is incremented, reset
+
+srclk = pin 2
+rclk = pin 3
+
+9 off
+9 red
+1 blue
+
+
+
+PIN   GPIOn-BITm  |  GPIOn-BITm    PIN
+------------------|-------------------
+00  -> GPIO6-03   |   GIPO6-02  ->  01
+01  -> GPIO6-02   |   GIPO6-03  ->  00
+02  -> GPIO9-04   |   GIPO6-12  ->  24
+03  -> GPIO9-05   |   GIPO6-13  ->  25
+04  -> GPIO9-06   |   GIPO6-16  ->  19
+05  -> GPIO9-08   |   GIPO6-17  ->  18
+06  -> GPIO7-10   |   GIPO6-18  ->  14
+07  -> GPIO7-17   |   GIPO6-19  ->  15
+08  -> GPIO7-16   |   GIPO6-22  ->  17
+09  -> GPIO7-11   |   GIPO6-23  ->  16
+10  -> GPIO7-00   |   GIPO6-24  ->  22
+11  -> GPIO7-02   |   GIPO6-25  ->  23
+12  -> GPIO7-01   |   GIPO6-26  ->  20
+13  -> GPIO7-03   |   GIPO6-27  ->  21
+14  -> GPIO6-18   |   GIPO6-30  ->  26
+15  -> GPIO6-19   |   GIPO6-31  ->  27
+16  -> GPIO6-23   |   GIPO7-00  ->  10
+17  -> GPIO6-22   |   GIPO7-01  ->  12
+18  -> GPIO6-17   |   GIPO7-02  ->  11
+19  -> GPIO6-16   |   GIPO7-03  ->  13
+20  -> GPIO6-26   |   GIPO7-10  ->  06
+21  -> GPIO6-27   |   GIPO7-11  ->  09
+22  -> GPIO6-24   |   GIPO7-12  ->  32
+23  -> GPIO6-25   |   GIPO7-16  ->  08
+24  -> GPIO6-12   |   GIPO7-17  ->  07
+25  -> GPIO6-13   |   GIPO8-12  ->  37
+26  -> GPIO6-30   |   GIPO8-13  ->  36
+27  -> GPIO6-31   |   GIPO8-14  ->  35
+28  -> GPIO8-18   |   GIPO8-15  ->  34
+29  -> GPIO9-31   |   GIPO8-16  ->  39
+30  -> GPIO8-23   |   GIPO8-17  ->  38
+31  -> GPIO8-22   |   GIPO8-18  ->  28
+32  -> GPIO7-12   |   GIPO8-22  ->  31
+33  -> GPIO9-07   |   GIPO8-23  ->  30
+34  -> GPIO8-15   |   GIPO9-04  ->  02
+35  -> GPIO8-14   |   GIPO9-05  ->  03
+36  -> GPIO8-13   |   GIPO9-06  ->  04
+37  -> GPIO8-12   |   GIPO9-07  ->  33
+38  -> GPIO8-17   |   GIPO9-08  ->  05
+39  -> GPIO8-16   |   GIPO9-31  ->  29
