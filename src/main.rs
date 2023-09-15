@@ -210,11 +210,11 @@ fn main() -> ! {
                 0.05 * multiplier,
             );
         }
-        framebuffer.set_led_unchecked(0, 0, 0.0075, 0.0075, 0.0075);
-        framebuffer.set_led_unchecked(0, 1, 0.0075, 0.0075, 0.0075);
-        framebuffer.set_led_unchecked(0, 2, 0.0075, 0.0075, 0.0075);
-        framebuffer.set_led_unchecked(0, 3, 0.0075, 0.0075, 0.0075);
-        framebuffer.set_led_unchecked(0, 4, 0.0075, 0.0075, 0.0075);
+        framebuffer.set_led_unchecked(0, 0, 0.01, 0.01, 0.01);
+        framebuffer.set_led_unchecked(0, 1, 0.01, 0.01, 0.01);
+        framebuffer.set_led_unchecked(0, 2, 0.01, 0.01, 0.01);
+        framebuffer.set_led_unchecked(0, 3, 0.01, 0.01, 0.01);
+        framebuffer.set_led_unchecked(0, 4, 0.01, 0.01, 0.01);
     }
 
     loop {
