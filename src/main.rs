@@ -20,7 +20,7 @@ use teensy4_bsp::{board, ral};
 #[allow(unused_imports)]
 use teensy4_panic as _;
 
-pub const WIDTH: usize = 1;
+pub const WIDTH: usize = 20;
 pub const HEIGHT: usize = 5;
 pub const COLOR_COUNT: usize = variant_count::<Colors>();
 pub const SHIFT_COUNT: u8 = (HEIGHT * COLOR_COUNT) as u8;
@@ -47,10 +47,108 @@ pub const fn get_pin_mask(gpio: OutputGpio) -> u32 {
     mask
 }
 
-pub const LED_OUTPUT_PINS: [OutputPin; WIDTH] = [OutputPin {
-    offset: P0::OFFSET,
-    gpio: OutputGpio::Gpio6,
-}];
+pub const LED_OUTPUT_PINS: [OutputPin; WIDTH] = [
+    OutputPin {
+        index: 0,
+        offset: P0::OFFSET,
+        gpio: OutputGpio::Gpio6,
+    },
+    OutputPin {
+        index: 1,
+        offset: P1::OFFSET,
+        gpio: OutputGpio::Gpio6,
+    },
+    OutputPin {
+        index: 6,
+        offset: P6::OFFSET,
+        gpio: OutputGpio::Gpio7,
+    },
+    OutputPin {
+        index: 7,
+        offset: P7::OFFSET,
+        gpio: OutputGpio::Gpio7,
+    },
+    OutputPin {
+        index: 8,
+        offset: P8::OFFSET,
+        gpio: OutputGpio::Gpio7,
+    },
+    OutputPin {
+        index: 9,
+        offset: P9::OFFSET,
+        gpio: OutputGpio::Gpio7,
+    },
+    OutputPin {
+        index: 10,
+        offset: P10::OFFSET,
+        gpio: OutputGpio::Gpio7,
+    },
+    OutputPin {
+        index: 11,
+        offset: P11::OFFSET,
+        gpio: OutputGpio::Gpio7,
+    },
+    OutputPin {
+        index: 12,
+        offset: P12::OFFSET,
+        gpio: OutputGpio::Gpio7,
+    },
+    OutputPin {
+        index: 13,
+        offset: P13::OFFSET,
+        gpio: OutputGpio::Gpio7,
+    },
+    OutputPin {
+        index: 14,
+        offset: P14::OFFSET,
+        gpio: OutputGpio::Gpio6,
+    },
+    OutputPin {
+        index: 15,
+        offset: P15::OFFSET,
+        gpio: OutputGpio::Gpio6,
+    },
+    OutputPin {
+        index: 16,
+        offset: P16::OFFSET,
+        gpio: OutputGpio::Gpio6,
+    },
+    OutputPin {
+        index: 17,
+        offset: P17::OFFSET,
+        gpio: OutputGpio::Gpio6,
+    },
+    OutputPin {
+        index: 18,
+        offset: P18::OFFSET,
+        gpio: OutputGpio::Gpio6,
+    },
+    OutputPin {
+        index: 19,
+        offset: P19::OFFSET,
+        gpio: OutputGpio::Gpio6,
+    },
+    OutputPin {
+        index: 20,
+        offset: P20::OFFSET,
+        gpio: OutputGpio::Gpio6,
+    },
+    OutputPin {
+        index: 21,
+        offset: P21::OFFSET,
+        gpio: OutputGpio::Gpio6,
+    },
+    OutputPin {
+        index: 22,
+        offset: P22::OFFSET,
+        gpio: OutputGpio::Gpio6,
+    },
+    OutputPin {
+        index: 23,
+        offset: P23::OFFSET,
+        gpio: OutputGpio::Gpio6,
+    },
+];
 
 #[repr(u8)]
 #[derive(Copy, Clone)]
@@ -60,6 +158,7 @@ pub enum OutputGpio {
 }
 
 pub struct OutputPin {
+    index: usize,
     offset: u32,
     gpio: OutputGpio,
 }
@@ -78,22 +177,40 @@ pub struct LedFramebuffer {
 }
 
 impl LedFramebuffer {
+    pub const RED_MULTIPLIER: f32 = 1.0;
+    pub const GREEN_MULTIPLIER: f32 = 1.0;
+    pub const BLUE_MULTIPLIER: f32 = 1.0;
+
     pub unsafe fn set_led_unchecked(&mut self, led_x: usize, led_y: usize, r: f32, g: f32, b: f32) {
         // TODO: do color adjustments in here
 
         let led_start_column = led_y * COLOR_COUNT;
         *(self
             .bit_target_lines
-            .get_unchecked_mut(led_start_column + (Colors::Blue as usize))
-            .get_unchecked_mut(led_x)) = b;
+            .get_unchecked_mut(led_start_column + (Colors::Red as usize))
+            .get_unchecked_mut(led_x)) = r * Self::RED_MULTIPLIER;
         *(self
             .bit_target_lines
             .get_unchecked_mut(led_start_column + (Colors::Green as usize))
-            .get_unchecked_mut(led_x)) = g;
+            .get_unchecked_mut(led_x)) = g * Self::GREEN_MULTIPLIER;
         *(self
             .bit_target_lines
+            .get_unchecked_mut(led_start_column + (Colors::Blue as usize))
+            .get_unchecked_mut(led_x)) = b * Self::BLUE_MULTIPLIER;
+
+        // we have to reset the current lines, because if we don't, the pwm function can break
+        *(self
+            .bit_current_lines
             .get_unchecked_mut(led_start_column + (Colors::Red as usize))
-            .get_unchecked_mut(led_x)) = r;
+            .get_unchecked_mut(led_x)) = 0.0;
+        *(self
+            .bit_current_lines
+            .get_unchecked_mut(led_start_column + (Colors::Green as usize))
+            .get_unchecked_mut(led_x)) = 0.0;
+        *(self
+            .bit_current_lines
+            .get_unchecked_mut(led_start_column + (Colors::Blue as usize))
+            .get_unchecked_mut(led_x)) = 0.0;
     }
 }
 
@@ -112,10 +229,10 @@ fn main() -> ! {
     let iomuxc = into_pads(instances.IOMUXC);
     let pins = from_pads(iomuxc);
 
-    let [mut p0, _unused, mut p2, mut p3, ..] = pins.erase();
-    pin_setup(&mut p0);
-    pin_setup(&mut p2);
-    pin_setup(&mut p3);
+    let mut erased_pins = pins.erase();
+    for pin in LED_OUTPUT_PINS {
+        pin_setup(&mut erased_pins[pin.index]);
+    }
 
     // set directions for gpio pins
     modify_reg!(ral::gpio, instances.GPIO6, GDIR, |gdir| gdir
@@ -129,16 +246,49 @@ fn main() -> ! {
     let mut current_bit = 0_u8;
     let mut framebuffer = LedFramebuffer::default();
     unsafe {
-        // framebuffer.set_led_unchecked(0, 0, 1.0, 0.0, 0.0);
-        // framebuffer.set_led_unchecked(0, 1, 1.0, 1.0, 0.0);
-        // framebuffer.set_led_unchecked(0, 2, 0.0, 1.0, 0.0);
-        // framebuffer.set_led_unchecked(0, 3, 0.0, 0.0, 1.0);
-        // framebuffer.set_led_unchecked(0, 4, 1.0, 0.0, 1.0);
-        framebuffer.set_led_unchecked(0, 0, 0.00001, 0.0, 0.0);
-        framebuffer.set_led_unchecked(0, 1, 0.00001, 0.00001, 0.0);
-        framebuffer.set_led_unchecked(0, 2, 0.0, 0.00001, 0.0);
-        framebuffer.set_led_unchecked(0, 3, 0.0, 0.0, 0.00001);
-        framebuffer.set_led_unchecked(0, 4, 0.00001, 0.0, 0.00001);
+        for x in 0..WIDTH {
+            let multiplier = (x + 1) as f32;
+            framebuffer.set_led_unchecked(
+                x,
+                0,
+                0.05 * multiplier,
+                0.05 * multiplier,
+                0.05 * multiplier,
+            );
+            framebuffer.set_led_unchecked(
+                x,
+                1,
+                0.05 * multiplier,
+                0.05 * multiplier,
+                0.05 * multiplier,
+            );
+            framebuffer.set_led_unchecked(
+                x,
+                2,
+                0.05 * multiplier,
+                0.05 * multiplier,
+                0.05 * multiplier,
+            );
+            framebuffer.set_led_unchecked(
+                x,
+                3,
+                0.05 * multiplier,
+                0.05 * multiplier,
+                0.05 * multiplier,
+            );
+            framebuffer.set_led_unchecked(
+                x,
+                4,
+                0.05 * multiplier,
+                0.05 * multiplier,
+                0.05 * multiplier,
+            );
+        }
+        framebuffer.set_led_unchecked(0, 0, 0.01, 0.01, 0.01);
+        framebuffer.set_led_unchecked(0, 1, 0.01, 0.01, 0.01);
+        framebuffer.set_led_unchecked(0, 2, 0.01, 0.01, 0.01);
+        framebuffer.set_led_unchecked(0, 3, 0.01, 0.01, 0.01);
+        framebuffer.set_led_unchecked(0, 4, 0.01, 0.01, 0.01);
     }
 
     loop {
