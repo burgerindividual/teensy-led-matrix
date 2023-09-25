@@ -1,8 +1,12 @@
 #![feature(variant_count)]
+#![feature(abi_unadjusted)]
+#![feature(link_llvm_intrinsics)]
+#![feature(stdsimd)]
 #![no_std]
 #![no_main]
 
 mod framebuffer;
+mod intrinsics;
 mod pins;
 
 // this is used to add the default panic handler, not sure why it goes marked as unused
@@ -168,13 +172,6 @@ pub fn pwm_pulse(current_value: &mut f32, target_value: f32) -> u32 {
     let truncated = unsafe { current_value.to_int_unchecked::<i32>() };
     *current_value -= truncated as f32;
     truncated as u32
-}
-
-#[no_mangle]
-pub extern "C" fn pwm_pulse_dsp(current_values: &mut u32, target_values: u32) -> u32 {
-    let sums = *current_values + target_values;
-    *current_values = sums & 0b0111111111111111_0111111111111111;
-    sums & 0b1000000000000000_1000000000000000
 }
 
 #[inline(always)]
