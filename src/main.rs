@@ -1,18 +1,12 @@
 #![feature(variant_count)]
-#![feature(stdsimd)]
-#![feature(portable_simd)]
 #![no_std]
 #![no_main]
 
 mod framebuffer;
 mod pins;
 
-use core::arch::arm::__qadd16;
 // this is used to add the default panic handler, not sure why it goes marked as unused
-use core::arch::arm::dsp::*;
 use core::hint::spin_loop;
-use core::mem::transmute;
-use core::simd::*;
 use core::sync::atomic::{fence, Ordering};
 
 use teensy4_bsp::hal::iomuxc::into_pads;
@@ -177,14 +171,10 @@ pub fn pwm_pulse(current_value: &mut f32, target_value: f32) -> u32 {
 }
 
 #[no_mangle]
-pub extern "C" fn pwm_pulse_dsp(current_values: &mut int16x2_t, target_values: int16x2_t) -> u32 {
-    unsafe {
-        let sums = __qadd16(*current_values, target_values);
-        *current_values = transmute::<_, int16x2_t>(
-            transmute::<_, u32>(sums) & 0b0111111111111111_0111111111111111,
-        );
-        transmute::<_, u32>(sums) & 0b1000000000000000_1000000000000000
-    }
+pub extern "C" fn pwm_pulse_dsp(current_values: &mut u32, target_values: u32) -> u32 {
+    let sums = *current_values + target_values;
+    *current_values = sums & 0b0111111111111111_0111111111111111;
+    sums & 0b1000000000000000_1000000000000000
 }
 
 #[inline(always)]
