@@ -1,27 +1,31 @@
-use core::arch::arm::__sel;
 use core::mem::transmute;
+
+use cortex_m::register::apsr;
 
 extern "unadjusted" {
     #[link_name = "llvm.arm.uadd8"]
     fn arm_uadd8(a: i32, b: i32) -> i32;
 }
 
-#[inline(always)]
-pub unsafe fn __uadd8(a: (u8, u8, u8, u8), b: (u8, u8, u8, u8)) -> (u8, u8, u8, u8) {
-    transmute(arm_uadd8(transmute(a), transmute(b)))
-}
+pub const BATCH_SIZE: usize = 4;
 
-// PinGroup with offsets in byte and byte offset in u32 reg
-#[no_mangle]
-pub extern "C" fn pwm_pulse_dsp(
-    current_values: &mut (u8, u8, u8, u8),
-    target_values: (u8, u8, u8, u8),
-) -> u32 {
+#[inline(always)]
+pub fn pwm_pulse_batched(
+    current_values: &mut [u8; BATCH_SIZE],
+    target_values: &[u8; BATCH_SIZE],
+    bit_offsets: &[usize; BATCH_SIZE],
+    out_buffer: &mut u32,
+) {
     unsafe {
-        let sums = __uadd8(*current_values, target_values);
-        // the lanes are selected based off if the previous function's lanes overflowed
-        let selected = __sel();
-        *current_values = transmute::<_, (u16, u16)>(sums & 0b0111111111111111_0111111111111111);
-        sums & 0b1000000000000000_1000000000000000
+        *current_values = transmute(arm_uadd8(
+            transmute(*current_values),
+            transmute(target_values),
+        ));
+        // the overflow bits are in the APSR register bits 19-16
+        let apsr = apsr::read().bits();
+        *out_buffer |= ((apsr >> 16) & 0b1) << bit_offsets[0];
+        *out_buffer |= ((apsr >> 17) & 0b1) << bit_offsets[1];
+        *out_buffer |= ((apsr >> 18) & 0b1) << bit_offsets[2];
+        *out_buffer |= ((apsr >> 19) & 0b1) << bit_offsets[3];
     }
 }

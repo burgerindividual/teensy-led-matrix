@@ -1,7 +1,8 @@
 #![feature(variant_count)]
 #![feature(abi_unadjusted)]
 #![feature(link_llvm_intrinsics)]
-#![feature(stdsimd)]
+#![feature(array_chunks)]
+#![feature(slice_flatten)]
 #![no_std]
 #![no_main]
 
@@ -10,7 +11,7 @@ mod intrinsics;
 mod pins;
 
 // this is used to add the default panic handler, not sure why it goes marked as unused
-use core::hint::spin_loop;
+use core::hint::{black_box, spin_loop};
 use core::sync::atomic::{fence, Ordering};
 
 use teensy4_bsp::hal::iomuxc::into_pads;
@@ -23,6 +24,7 @@ use teensy4_bsp::{board, ral};
 use teensy4_panic as _;
 
 use crate::framebuffer::*;
+use crate::intrinsics::{pwm_pulse_batched, BATCH_SIZE};
 use crate::pins::*;
 
 /// Probably very bad, gets rid of the memory barriers in exchange for a single yield instruction.
@@ -45,12 +47,6 @@ fn main() -> ! {
     write_reg!(
         ral::gpio,
         teensy_peripherals.IOMUXC_GPR,
-        GPR27,
-        GPIO7_PIN_MASK
-    );
-    write_reg!(
-        ral::gpio,
-        teensy_peripherals.IOMUXC_GPR,
         GPR29,
         GPIO9_PIN_MASK
     );
@@ -61,8 +57,8 @@ fn main() -> ! {
     let mut erased_pins = pins.erase();
 
     // configure LED output pins
-    for pin in GPIO6_PINS.iter().chain(GPIO7_PINS.iter()) {
-        led_output_pin_setup(&mut erased_pins[pin.pin_index]);
+    for &pin in GPIO6_BATCHED_PIN_OFFSETS.flatten() {
+        led_output_pin_setup(&mut erased_pins[pin]);
     }
 
     // configure clock pins
@@ -72,12 +68,10 @@ fn main() -> ! {
     // set directions for gpio pins
     modify_reg!(ral::gpio, teensy_peripherals.GPIO6, GDIR, |gdir| gdir
         | GPIO6_PIN_MASK);
-    modify_reg!(ral::gpio, teensy_peripherals.GPIO7, GDIR, |gdir| gdir
-        | GPIO7_PIN_MASK);
     modify_reg!(ral::gpio, teensy_peripherals.GPIO9, GDIR, |gdir| gdir
         | GPIO9_PIN_MASK);
 
-    let mut framebuffer = LedFramebuffer::default();
+    let mut framebuffer = black_box(LedFramebuffer::default());
 
     // enable RTC and wait for it to get set
     modify_reg!(ral::gpio, teensy_peripherals.SNVS, HPCR, |hpcr| hpcr
@@ -101,26 +95,21 @@ fn main() -> ! {
                 .get_unchecked_mut(current_shift_bit as usize);
 
             let mut gpio6_out_buffer = 0_u32;
-            let mut gpio7_out_buffer = 0_u32;
 
-            for pin in GPIO6_PINS {
-                let current_value = current_values.get_unchecked_mut(pin.led_x);
-                let target_value = *target_values.get_unchecked(pin.led_x);
-                let pulse = pwm_pulse(current_value, target_value);
-
-                gpio6_out_buffer |= pulse << pin.offset;
-            }
-
-            for pin in GPIO7_PINS {
-                let current_value = current_values.get_unchecked_mut(pin.led_x);
-                let target_value = *target_values.get_unchecked(pin.led_x);
-                let pulse = pwm_pulse(current_value, target_value);
-
-                gpio7_out_buffer |= pulse << pin.offset;
+            for ((current_value_batch, target_value_batch), pin_offset_batch) in current_values
+                .array_chunks_mut::<BATCH_SIZE>()
+                .zip(target_values.array_chunks::<BATCH_SIZE>())
+                .zip(GPIO6_BATCHED_PIN_OFFSETS.iter())
+            {
+                pwm_pulse_batched(
+                    current_value_batch,
+                    target_value_batch,
+                    pin_offset_batch,
+                    &mut gpio6_out_buffer,
+                );
             }
 
             write_reg!(ral::gpio, teensy_peripherals.GPIO6, DR, gpio6_out_buffer);
-            write_reg!(ral::gpio, teensy_peripherals.GPIO7, DR, gpio7_out_buffer);
 
             let mut clock_pulse = 1 << P2::OFFSET;
             clock_pulse |= if current_shift_bit == 0 {
@@ -166,17 +155,8 @@ fn main() -> ! {
 }
 
 #[inline(always)]
-pub fn pwm_pulse(current_value: &mut f32, target_value: f32) -> u32 {
-    *current_value += target_value;
-    // this should only ever return 0 or 1, so it should be safe
-    let truncated = unsafe { current_value.to_int_unchecked::<i32>() };
-    *current_value -= truncated as f32;
-    truncated as u32
-}
-
-#[inline(always)]
 pub fn frame_advance(framebuffer: &mut LedFramebuffer) {
     unsafe {
-        framebuffer.set_led_unchecked(0, 0, 1.0, 1.0, 1.0);
+        framebuffer.set_led_unchecked(0, 0, 255, 255, 255);
     }
 }

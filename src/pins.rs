@@ -3,63 +3,49 @@ use teensy4_bsp::pins::imxrt_iomuxc::*;
 use teensy4_bsp::pins::t40::*;
 
 use crate::framebuffer::{COLOR_COUNT, HEIGHT};
+use crate::intrinsics::BATCH_SIZE;
 
 pub const SHIFT_COUNT: u8 = (HEIGHT * COLOR_COUNT) as u8;
 
-pub const GPIO6_PIN_MASK: u32 = get_pin_mask(&GPIO6_PINS);
-pub const GPIO7_PIN_MASK: u32 = get_pin_mask(&GPIO7_PINS);
+pub const GPIO6_PIN_MASK: u32 = get_pin_mask(&GPIO6_BATCHED_PIN_OFFSETS);
+// pub const GPIO7_PIN_MASK: u32 = get_pin_mask(&GPIO7_PINS);
 pub const GPIO9_PIN_MASK: u32 = (1 << P2::OFFSET) | (1 << P3::OFFSET);
 
-pub const GPIO6_PINS: [LedOutputPin; 1] = [
-    LedOutputPin::new(0, 0, P0::OFFSET),
-    // LedOutputPin::new(1, 1, P1::OFFSET),
-    // LedOutputPin::new(14, 10, P14::OFFSET),
-    // LedOutputPin::new(15, 11, P15::OFFSET),
-    // LedOutputPin::new(16, 12, P16::OFFSET),
-    // LedOutputPin::new(17, 13, P17::OFFSET),
-    // LedOutputPin::new(18, 14, P18::OFFSET),
-    // LedOutputPin::new(19, 15, P19::OFFSET),
-    // LedOutputPin::new(20, 16, P20::OFFSET),
-    // LedOutputPin::new(21, 17, P21::OFFSET),
-    // LedOutputPin::new(22, 18, P22::OFFSET),
-    // LedOutputPin::new(23, 19, P23::OFFSET),
+pub const LED_OUTPUT_PIN_INDICES: [usize; 12] = [0, 1, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23];
+pub const GPIO6_BATCHED_PIN_OFFSETS: [[usize; BATCH_SIZE]; 3] = [
+    [
+        P1::OFFSET as usize,
+        P0::OFFSET as usize,
+        P17::OFFSET as usize,
+        P16::OFFSET as usize,
+    ],
+    [
+        P19::OFFSET as usize,
+        P18::OFFSET as usize,
+        P14::OFFSET as usize,
+        P15::OFFSET as usize,
+    ],
+    [
+        P22::OFFSET as usize,
+        P23::OFFSET as usize,
+        P20::OFFSET as usize,
+        P21::OFFSET as usize,
+    ],
 ];
 
-pub const GPIO7_PINS: [LedOutputPin; 0] = [
-    // LedOutputPin::new(6, 2, P6::OFFSET),
-    // LedOutputPin::new(7, 3, P7::OFFSET),
-    // LedOutputPin::new(8, 4, P8::OFFSET),
-    // LedOutputPin::new(9, 5, P9::OFFSET),
-    // LedOutputPin::new(10, 6, P10::OFFSET),
-    // LedOutputPin::new(11, 7, P11::OFFSET),
-    // LedOutputPin::new(12, 8, P12::OFFSET),
-    // LedOutputPin::new(13, 9, P13::OFFSET),
-];
-
-#[derive(Copy, Clone)]
-pub struct LedOutputPin {
-    pub pin_index: usize,
-    pub led_x: usize,
-    pub offset: u32,
-}
-
-impl LedOutputPin {
-    pub const fn new(pin_index: usize, led_x: usize, offset: u32) -> Self {
-        Self {
-            pin_index,
-            led_x,
-            offset,
-        }
-    }
-}
-
-pub const fn get_pin_mask(pins: &[LedOutputPin]) -> u32 {
+pub const fn get_pin_mask(pins: &[[usize; BATCH_SIZE]]) -> u32 {
     let mut mask = 0_u32;
 
     let mut i = 0;
     while i < pins.len() {
-        let pin = &pins[i];
-        mask |= 1 << pin.offset;
+        let pin_offset_batch = &pins[i];
+
+        let mut j = 0;
+        while j < BATCH_SIZE {
+            mask |= 1 << pin_offset_batch[j];
+            j += 1;
+        }
+
         i += 1;
     }
 
