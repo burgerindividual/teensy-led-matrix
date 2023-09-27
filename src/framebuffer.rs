@@ -15,6 +15,7 @@ pub enum Colors {
 #[repr(align(4))] // align to batch size
 pub struct LedFramebuffer {
     pub(crate) bit_target_lines: [[u8; WIDTH]; HEIGHT * COLOR_COUNT],
+    // pub(crate) bit_next_target_lines: [[u8; WIDTH]; HEIGHT * COLOR_COUNT],
     pub(crate) bit_current_lines: [[u8; WIDTH]; HEIGHT * COLOR_COUNT],
 }
 
@@ -39,19 +40,25 @@ impl LedFramebuffer {
             .bit_target_lines
             .get_unchecked_mut(led_start_column + (Colors::Blue as usize))
             .get_unchecked_mut(led_x)) = b;
+    }
 
-        // we have to reset the current lines, because if we don't, the pwm function can break
-        *(self
-            .bit_current_lines
-            .get_unchecked_mut(led_start_column + (Colors::Red as usize))
-            .get_unchecked_mut(led_x)) = r;
-        *(self
-            .bit_current_lines
-            .get_unchecked_mut(led_start_column + (Colors::Green as usize))
-            .get_unchecked_mut(led_x)) = g;
-        *(self
-            .bit_current_lines
-            .get_unchecked_mut(led_start_column + (Colors::Blue as usize))
-            .get_unchecked_mut(led_x)) = b;
+    #[inline(always)]
+    /// # Safety this method is safe as long as led_x and led_y are within the bounds of the led grid
+    pub unsafe fn get_led_unchecked(&self, led_x: usize, led_y: usize) -> (u8, u8, u8) {
+        let led_start_column = led_y * COLOR_COUNT;
+        let r = *(self
+            .bit_target_lines
+            .get_unchecked(led_start_column + (Colors::Red as usize))
+            .get_unchecked(led_x));
+        let g = *(self
+            .bit_target_lines
+            .get_unchecked(led_start_column + (Colors::Green as usize))
+            .get_unchecked(led_x));
+        let b = *(self
+            .bit_target_lines
+            .get_unchecked(led_start_column + (Colors::Blue as usize))
+            .get_unchecked(led_x));
+
+        (r, g, b)
     }
 }

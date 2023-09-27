@@ -1,10 +1,10 @@
-use core::mem::transmute;
+use core::hint::spin_loop;
 
 use cortex_m::register::apsr;
 
 extern "unadjusted" {
     #[link_name = "llvm.arm.uadd8"]
-    fn arm_uadd8(a: i32, b: i32) -> i32;
+    fn arm_uadd8(a: u32, b: u32) -> u32;
 }
 
 pub const BATCH_SIZE: usize = 4;
@@ -16,16 +16,24 @@ pub fn pwm_pulse_batched(
     bit_offsets: &[usize; BATCH_SIZE],
     out_buffer: &mut u32,
 ) {
-    unsafe {
-        *current_values = transmute(arm_uadd8(
-            transmute(*current_values),
-            transmute(target_values),
-        ));
-        // the overflow bits are in the APSR register bits 19-16
-        let apsr = apsr::read().bits();
-        *out_buffer |= ((apsr >> 16) & 0b1) << bit_offsets[0];
-        *out_buffer |= ((apsr >> 17) & 0b1) << bit_offsets[1];
-        *out_buffer |= ((apsr >> 18) & 0b1) << bit_offsets[2];
-        *out_buffer |= ((apsr >> 19) & 0b1) << bit_offsets[3];
+    *current_values = unsafe {
+        arm_uadd8(
+            u32::from_ne_bytes(*current_values),
+            u32::from_ne_bytes(*target_values),
+        )
+        .to_ne_bytes()
+    };
+    // the overflow bits are in the APSR register bits 19-16
+    let apsr = apsr::read().bits();
+    *out_buffer |= ((apsr >> 16) & 0b1) << bit_offsets[0];
+    *out_buffer |= ((apsr >> 17) & 0b1) << bit_offsets[1];
+    *out_buffer |= ((apsr >> 18) & 0b1) << bit_offsets[2];
+    *out_buffer |= ((apsr >> 19) & 0b1) << bit_offsets[3];
+}
+
+#[inline(always)]
+pub fn yield_cycles<const CYCLES: u64>() {
+    for _ in 0..CYCLES {
+        spin_loop();
     }
 }
