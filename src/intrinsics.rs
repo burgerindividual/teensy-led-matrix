@@ -1,5 +1,3 @@
-use core::hint::{black_box, spin_loop};
-
 use cortex_m::peripheral::DWT;
 use cortex_m::register::apsr;
 
@@ -30,13 +28,6 @@ pub fn pwm_pulse_batched(
     *out_buffer |= ((apsr >> 17) & 0b1) << bit_offsets[1];
     *out_buffer |= ((apsr >> 18) & 0b1) << bit_offsets[2];
     *out_buffer |= ((apsr >> 19) & 0b1) << bit_offsets[3];
-}
-
-#[inline(always)]
-pub fn yield_cycles<const CYCLES: u32>() {
-    for _ in 0..CYCLES {
-        spin_loop();
-    }
 }
 
 #[inline(always)]

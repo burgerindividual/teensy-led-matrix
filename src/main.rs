@@ -27,16 +27,22 @@ use teensy4_panic as _;
 use crate::framebuffer::*;
 use crate::intrinsics::{pwm_pulse_batched, wait_cycles, BATCH_SIZE};
 use crate::pins::*;
+use crate::program::rainbow::Rainbow;
+use crate::program::Program;
 
-pub const DELAY_1_CYCLES: u32 = (22_u32 * 6).div_ceil(10);
-pub const DELAY_2_CYCLES: u32 = (25_u32 * 6).div_ceil(10);
-/// Effectively sets the FPS by masking which bits of the RTC 32khz clock should be tested.
-pub const RTC_MASK: u32 = (-1_i32 << 6) as u32;
+pub type CurrentProgram = Rainbow;
+
+// pub const DELAY_1_CYCLES: u32 = (22_u32 * 6).div_ceil(10);
+// pub const DELAY_2_CYCLES: u32 = (25_u32 * 6).div_ceil(10);
+pub const DELAY_1_CYCLES: u32 = (110_u32 * 6).div_ceil(10);
+pub const DELAY_2_CYCLES: u32 = (125_u32 * 6).div_ceil(10);
 
 #[teensy4_bsp::rt::entry]
 fn main() -> ! {
     let teensy_peripherals = board::instances();
     let mut cortex_peripherals = Peripherals::take().unwrap();
+
+    cortex_peripherals.DCB.enable_trace();
     cortex_peripherals.DWT.enable_cycle_counter();
 
     // activate GPIO6, GPIO7, and GPIO9 with our used pins
@@ -83,6 +89,12 @@ fn main() -> ! {
     }
 
     let mut framebuffer = Framebuffer::default();
+    let mut program = CurrentProgram::default();
+
+    let rtc_mask = (-1_i32 << (32768_u16.ilog2() - CurrentProgram::frame_rate().ilog2())) as u32;
+
+    program.init(&mut framebuffer.back_buffer);
+    framebuffer.flip();
 
     let mut current_shift_bit = 0_u8;
     let mut last_rtc_val = 0;
@@ -90,11 +102,13 @@ fn main() -> ! {
     loop {
         let target_values = unsafe {
             framebuffer
+                .front_buffer
                 .bit_target_lines
                 .get_unchecked_mut(current_shift_bit as usize)
         };
         let current_values = unsafe {
             framebuffer
+                .front_buffer
                 .bit_current_lines
                 .get_unchecked_mut(current_shift_bit as usize)
         };
@@ -117,7 +131,9 @@ fn main() -> ! {
         write_reg!(ral::gpio, teensy_peripherals.GPIO6, DR, gpio6_out_buffer);
 
         let start_cycle_count = DWT::cycle_count();
-        // TODO: process frame here
+
+        program.process_chunk(&framebuffer.front_buffer, &mut framebuffer.back_buffer);
+
         let mut clock_pulse = 1 << P2::OFFSET;
         clock_pulse |= if current_shift_bit == 0 {
             1 << P3::OFFSET
@@ -130,7 +146,9 @@ fn main() -> ! {
         write_reg!(ral::gpio, teensy_peripherals.GPIO9, DR_SET, clock_pulse);
 
         let start_cycle_count = DWT::cycle_count();
-        // TODO: process frame here
+
+        program.process_chunk(&framebuffer.front_buffer, &mut framebuffer.back_buffer);
+
         wait_cycles::<DELAY_2_CYCLES>(start_cycle_count);
 
         write_reg!(ral::gpio, teensy_peripherals.GPIO9, DR_CLEAR, clock_pulse);
@@ -143,35 +161,16 @@ fn main() -> ! {
         if current_shift_bit == SHIFT_COUNT {
             current_shift_bit = 0;
 
-            let current_rtc_val = read_reg!(ral::gpio, teensy_peripherals.SNVS, HPRTCLR) & RTC_MASK;
+            // the mask chooses which bits are tested against, which can effectively set the
+            // framerate
+            let current_rtc_val = read_reg!(ral::gpio, teensy_peripherals.SNVS, HPRTCLR) & rtc_mask;
 
             // Frame advance is done here to effectively cause a vertical sync, as we
             // will only be updating the FB after all scanlines are written.
             if last_rtc_val != current_rtc_val {
                 last_rtc_val = current_rtc_val;
-                frame_advance(&mut framebuffer);
-            }
-        }
-    }
-}
-
-#[inline(always)]
-pub fn frame_advance(framebuffer: &mut LedFramebuffer) {
-    unsafe {
-        for x in 0..WIDTH {
-            for y in 0..HEIGHT {
-                let (mut r, mut g, mut b) = framebuffer.get_led_unchecked(x, y);
-
-                g = g.saturating_add((r == 0xFF && b == 0x00) as u8);
-                g = g.saturating_sub((b == 0xFF && r == 0x00) as u8);
-
-                b = b.saturating_add((g == 0xFF && r == 0x00) as u8);
-                b = b.saturating_sub((r == 0xFF && g == 0x00) as u8);
-
-                r = r.saturating_add((b == 0xFF && g == 0x00) as u8);
-                r = r.saturating_sub((g == 0xFF && b == 0x00) as u8);
-
-                framebuffer.set_led_unchecked(x, y, r, g, b);
+                framebuffer.flip();
+                program.frame_finished();
             }
         }
     }

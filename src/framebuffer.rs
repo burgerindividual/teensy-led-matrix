@@ -20,8 +20,8 @@ pub struct Framebuffer {
 #[derive(Default)]
 #[repr(align(4))] // align to batch size
 pub struct FrontBuffer {
-    bit_target_lines: [[u8; WIDTH]; HEIGHT * COLOR_COUNT],
-    bit_current_lines: [[u8; WIDTH]; HEIGHT * COLOR_COUNT],
+    pub(crate) bit_target_lines: [[u8; WIDTH]; HEIGHT * COLOR_COUNT],
+    pub(crate) bit_current_lines: [[u8; WIDTH]; HEIGHT * COLOR_COUNT],
 }
 
 #[derive(Default)]
@@ -43,7 +43,8 @@ impl FrontBuffer {
     pub const BLUE_MAX: u8 = u8::MAX;
 
     #[inline(always)]
-    /// # Safety this method is safe as long as led_x and led_y are within the bounds of the led grid
+    /// # Safety:
+    /// This method is safe as long as led_x and led_y are within the bounds of the led grid
     pub unsafe fn get_led_unchecked(&self, led_x: usize, led_y: usize) -> (u8, u8, u8) {
         let led_start_column = led_y * COLOR_COUNT;
         let r = *(self
@@ -65,7 +66,8 @@ impl FrontBuffer {
 
 impl BackBuffer {
     #[inline(always)]
-    /// # Safety this method is safe as long as led_x and led_y are within the bounds of the led grid
+    /// # Safety:
+    /// This method is safe as long as led_x and led_y are within the bounds of the led grid
     pub unsafe fn set_led_unchecked(&mut self, led_x: usize, led_y: usize, r: u8, g: u8, b: u8) {
         let led_start_column = led_y * COLOR_COUNT;
         *(self
