@@ -37,3 +37,10 @@ pub fn yield_cycles<const CYCLES: u64>() {
         spin_loop();
     }
 }
+
+#[inline(always)]
+pub fn yield_ns<const NS: u64>() {
+    for _ in 0..(NS * 6 / 10) {
+        spin_loop();
+    }
+}

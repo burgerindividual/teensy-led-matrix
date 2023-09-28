@@ -22,12 +22,11 @@ use teensy4_bsp::{board, ral};
 use teensy4_panic as _;
 
 use crate::framebuffer::*;
-use crate::intrinsics::{pwm_pulse_batched, yield_cycles, BATCH_SIZE};
+use crate::intrinsics::{pwm_pulse_batched, yield_ns, BATCH_SIZE};
 use crate::pins::*;
 
 /// Gets rid of the delays used to fit in spec with the SN74HC595 datasheet.
 pub const FAST_MODE: bool = false;
-pub const DIVISOR: u64 = 1;
 /// Effectively sets the FPS by masking which bits of the RTC 32khz clock should be tested.
 pub const RTC_MASK: u32 = (-1_i32 << 6) as u32;
 
@@ -72,22 +71,11 @@ fn main() -> ! {
 
     let mut framebuffer = LedFramebuffer::default();
     unsafe {
-        // framebuffer.set_led_unchecked(0, 0, 0, 255, 0);
-        // framebuffer.set_led_unchecked(0, 1, 255, 0, 0);
-        // framebuffer.set_led_unchecked(0, 2, 0, 255, 0);
         framebuffer.set_led_unchecked(0, 3, 0, 255, 0);
         framebuffer.set_led_unchecked(0, 4, 127, 255, 0);
         framebuffer.set_led_unchecked(0, 5, 255, 255, 0);
         framebuffer.set_led_unchecked(0, 6, 255, 127, 0);
         framebuffer.set_led_unchecked(0, 7, 255, 0, 0);
-        // framebuffer.set_led_unchecked(0, 0, 50, 0, 0);
-        // framebuffer.set_led_unchecked(0, 1, 50, 25, 0);
-        // framebuffer.set_led_unchecked(0, 2, 25, 50, 0);
-        // framebuffer.set_led_unchecked(0, 3, 0, 50, 0);
-        // framebuffer.set_led_unchecked(0, 4, 0, 50, 25);
-        // framebuffer.set_led_unchecked(0, 5, 0, 25, 50);
-        // framebuffer.set_led_unchecked(0, 6, 0, 0, 50);
-        // framebuffer.set_led_unchecked(0, 7, 25, 0, 50);
     }
 
     // enable RTC and wait for it to get set
@@ -139,22 +127,19 @@ fn main() -> ! {
         };
 
         if !FAST_MODE {
-            // 110ns delay
-            yield_cycles::<{ 66 / DIVISOR }>();
+            yield_ns::<110>();
         }
 
         write_reg!(ral::gpio, teensy_peripherals.GPIO9, DR_SET, clock_pulse);
 
         if !FAST_MODE {
-            // 125ns delay
-            yield_cycles::<{ 75 / DIVISOR }>();
+            yield_ns::<125>();
         }
 
         write_reg!(ral::gpio, teensy_peripherals.GPIO9, DR_CLEAR, clock_pulse);
 
         if !FAST_MODE {
-            // 10ns delay
-            yield_cycles::<{ 6 / DIVISOR }>();
+            yield_ns::<10>();
         }
 
         current_shift_bit += 1;
