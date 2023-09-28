@@ -1,5 +1,6 @@
-use core::hint::spin_loop;
+use core::hint::{black_box, spin_loop};
 
+use cortex_m::peripheral::DWT;
 use cortex_m::register::apsr;
 
 extern "unadjusted" {
@@ -32,15 +33,14 @@ pub fn pwm_pulse_batched(
 }
 
 #[inline(always)]
-pub fn yield_cycles<const CYCLES: u64>() {
+pub fn yield_cycles<const CYCLES: u32>() {
     for _ in 0..CYCLES {
         spin_loop();
     }
 }
 
 #[inline(always)]
-pub fn yield_ns<const NS: u64>() {
-    for _ in 0..(NS * 6 / 10) {
-        spin_loop();
-    }
+pub fn wait_cycles<const CYCLES: u32>(first_cycle_count: u32) {
+    let target_cycle_count = first_cycle_count + CYCLES;
+    while DWT::cycle_count() < target_cycle_count {}
 }

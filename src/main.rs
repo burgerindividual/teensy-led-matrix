@@ -12,6 +12,8 @@ mod pins;
 
 use core::hint::spin_loop;
 
+use cortex_m::peripheral::DWT;
+use cortex_m::Peripherals;
 use teensy4_bsp::hal::iomuxc::into_pads;
 use teensy4_bsp::pins::imxrt_iomuxc::gpio::Pin;
 use teensy4_bsp::pins::t40::*;
@@ -22,18 +24,20 @@ use teensy4_bsp::{board, ral};
 use teensy4_panic as _;
 
 use crate::framebuffer::*;
-use crate::intrinsics::{pwm_pulse_batched, yield_ns, BATCH_SIZE};
+use crate::intrinsics::{pwm_pulse_batched, wait_cycles, yield_cycles, BATCH_SIZE};
 use crate::pins::*;
 
-/// Gets rid of the delays used to fit in spec with the SN74HC595 datasheet.
-pub const FAST_MODE: bool = false;
+pub const DELAY_1_CYCLES: u32 = 110 * 6 / 10;
+pub const DELAY_2_CYCLES: u32 = 125 * 6 / 10;
+pub const DELAY_3_CYCLES: u32 = 10 * 6 / 10;
 /// Effectively sets the FPS by masking which bits of the RTC 32khz clock should be tested.
 pub const RTC_MASK: u32 = (-1_i32 << 6) as u32;
 
 #[teensy4_bsp::rt::entry]
 fn main() -> ! {
     let teensy_peripherals = board::instances();
-    // let cortex_peripherals = Peripherals::take().unwrap();
+    let mut cortex_peripherals = Peripherals::take().unwrap();
+    cortex_peripherals.DWT.enable_cycle_counter();
 
     // activate GPIO6, GPIO7, and GPIO9 with our used pins
     write_reg!(
@@ -119,6 +123,8 @@ fn main() -> ! {
 
         write_reg!(ral::gpio, teensy_peripherals.GPIO6, DR, gpio6_out_buffer);
 
+        let cycle_count = DWT::cycle_count();
+        // TODO: process frame here
         let mut clock_pulse = 1 << P2::OFFSET;
         clock_pulse |= if current_shift_bit == 0 {
             1 << P3::OFFSET
@@ -126,21 +132,18 @@ fn main() -> ! {
             0
         };
 
-        if !FAST_MODE {
-            yield_ns::<110>();
-        }
+        wait_cycles::<DELAY_1_CYCLES>(cycle_count);
 
         write_reg!(ral::gpio, teensy_peripherals.GPIO9, DR_SET, clock_pulse);
 
-        if !FAST_MODE {
-            yield_ns::<125>();
-        }
+        let cycle_count = DWT::cycle_count();
+        // TODO: process frame here
+        wait_cycles::<DELAY_2_CYCLES>(cycle_count);
 
         write_reg!(ral::gpio, teensy_peripherals.GPIO9, DR_CLEAR, clock_pulse);
 
-        if !FAST_MODE {
-            yield_ns::<10>();
-        }
+        // likely unnecessary
+        // yield_cycles::<DELAY_3_CYCLES>();
 
         current_shift_bit += 1;
         if current_shift_bit == SHIFT_COUNT {
