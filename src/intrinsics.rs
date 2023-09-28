@@ -40,7 +40,7 @@ pub fn yield_cycles<const CYCLES: u32>() {
 }
 
 #[inline(always)]
-pub fn wait_cycles<const CYCLES: u32>(first_cycle_count: u32) {
-    let target_cycle_count = first_cycle_count + CYCLES;
+pub fn wait_cycles<const CYCLES: u32>(start_cycle_count: u32) {
+    let target_cycle_count = start_cycle_count + CYCLES;
     while DWT::cycle_count() < target_cycle_count {}
 }

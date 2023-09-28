@@ -123,7 +123,7 @@ fn main() -> ! {
 
         write_reg!(ral::gpio, teensy_peripherals.GPIO6, DR, gpio6_out_buffer);
 
-        let cycle_count = DWT::cycle_count();
+        let start_cycle_count = DWT::cycle_count();
         // TODO: process frame here
         let mut clock_pulse = 1 << P2::OFFSET;
         clock_pulse |= if current_shift_bit == 0 {
@@ -132,13 +132,13 @@ fn main() -> ! {
             0
         };
 
-        wait_cycles::<DELAY_1_CYCLES>(cycle_count);
+        wait_cycles::<DELAY_1_CYCLES>(start_cycle_count);
 
         write_reg!(ral::gpio, teensy_peripherals.GPIO9, DR_SET, clock_pulse);
 
-        let cycle_count = DWT::cycle_count();
+        let start_cycle_count = DWT::cycle_count();
         // TODO: process frame here
-        wait_cycles::<DELAY_2_CYCLES>(cycle_count);
+        wait_cycles::<DELAY_2_CYCLES>(start_cycle_count);
 
         write_reg!(ral::gpio, teensy_peripherals.GPIO9, DR_CLEAR, clock_pulse);
 
