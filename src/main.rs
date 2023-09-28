@@ -9,6 +9,7 @@
 mod framebuffer;
 mod intrinsics;
 mod pins;
+mod program;
 
 use core::hint::spin_loop;
 
@@ -24,12 +25,11 @@ use teensy4_bsp::{board, ral};
 use teensy4_panic as _;
 
 use crate::framebuffer::*;
-use crate::intrinsics::{pwm_pulse_batched, wait_cycles, yield_cycles, BATCH_SIZE};
+use crate::intrinsics::{pwm_pulse_batched, wait_cycles, BATCH_SIZE};
 use crate::pins::*;
 
-pub const DELAY_1_CYCLES: u32 = 110 * 6 / 10;
-pub const DELAY_2_CYCLES: u32 = 125 * 6 / 10;
-pub const DELAY_3_CYCLES: u32 = 10 * 6 / 10;
+pub const DELAY_1_CYCLES: u32 = (22_u32 * 6).div_ceil(10);
+pub const DELAY_2_CYCLES: u32 = (25_u32 * 6).div_ceil(10);
 /// Effectively sets the FPS by masking which bits of the RTC 32khz clock should be tested.
 pub const RTC_MASK: u32 = (-1_i32 << 6) as u32;
 
@@ -73,15 +73,6 @@ fn main() -> ! {
     modify_reg!(ral::gpio, teensy_peripherals.GPIO9, GDIR, |gdir| gdir
         | GPIO9_PIN_MASK);
 
-    let mut framebuffer = LedFramebuffer::default();
-    unsafe {
-        framebuffer.set_led_unchecked(0, 3, 0, 255, 0);
-        framebuffer.set_led_unchecked(0, 4, 127, 255, 0);
-        framebuffer.set_led_unchecked(0, 5, 255, 255, 0);
-        framebuffer.set_led_unchecked(0, 6, 255, 127, 0);
-        framebuffer.set_led_unchecked(0, 7, 255, 0, 0);
-    }
-
     // enable RTC and wait for it to get set
     modify_reg!(ral::gpio, teensy_peripherals.SNVS, HPCR, |hpcr| hpcr
         | HPCR::RTC_EN::RW::RTC_EN_1);
@@ -90,6 +81,8 @@ fn main() -> ! {
     {
         spin_loop();
     }
+
+    let mut framebuffer = Framebuffer::default();
 
     let mut current_shift_bit = 0_u8;
     let mut last_rtc_val = 0;
@@ -142,8 +135,9 @@ fn main() -> ! {
 
         write_reg!(ral::gpio, teensy_peripherals.GPIO9, DR_CLEAR, clock_pulse);
 
-        // likely unnecessary
-        // yield_cycles::<DELAY_3_CYCLES>();
+        // between the clock pulse and the serial output changing, 3 cycles of delay is expected.
+        // in any scenario, this is already satisfied by the code setting up the next serial output,
+        // so it should be fine to exclude an excess yield.
 
         current_shift_bit += 1;
         if current_shift_bit == SHIFT_COUNT {
