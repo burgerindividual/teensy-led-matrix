@@ -1,14 +1,19 @@
-#![feature(variant_count)]
 #![feature(abi_unadjusted)]
 #![feature(link_llvm_intrinsics)]
 #![feature(array_chunks)]
 #![feature(slice_flatten)]
+#![feature(exclusive_range_pattern)]
+#![feature(maybe_uninit_slice)]
 #![no_std]
 #![no_main]
 
+mod color;
 mod framebuffer;
 mod intrinsics;
 mod pins;
+mod take_mut;
+
+mod collections;
 mod program;
 
 use core::hint::spin_loop;
@@ -27,10 +32,9 @@ use teensy4_panic as _;
 use crate::framebuffer::*;
 use crate::intrinsics::{pwm_pulse_batched, wait_cycles, BATCH_SIZE};
 use crate::pins::*;
-use crate::program::rainbow::Rainbow;
-use crate::program::Program;
+use crate::program::*;
 
-pub type CurrentProgram = Rainbow;
+pub type CurrentProgram = Rain;
 
 // pub const DELAY_1_CYCLES: u32 = (22_u32 * 6).div_ceil(10);
 // pub const DELAY_2_CYCLES: u32 = (25_u32 * 6).div_ceil(10);
@@ -39,7 +43,7 @@ pub const DELAY_2_CYCLES: u32 = (125_u32 * 6).div_ceil(10);
 
 #[teensy4_bsp::rt::entry]
 fn main() -> ! {
-    let teensy_peripherals = board::instances();
+    let mut teensy_peripherals = board::instances();
     let mut cortex_peripherals = Peripherals::take().unwrap();
 
     cortex_peripherals.DCB.enable_trace();
@@ -89,9 +93,9 @@ fn main() -> ! {
     }
 
     let mut framebuffer = Framebuffer::default();
-    let mut program = CurrentProgram::default();
+    let mut program = CurrentProgram::new(&mut teensy_peripherals.TRNG);
 
-    let rtc_mask = (-1_i32 << (32768_u16.ilog2() - CurrentProgram::frame_rate().ilog2())) as u32;
+    let rtc_mask = CurrentProgram::frame_rate().get_rtc_mask();
 
     program.init(&mut framebuffer.back_buffer);
     framebuffer.flip();
@@ -170,7 +174,7 @@ fn main() -> ! {
             if last_rtc_val != current_rtc_val {
                 last_rtc_val = current_rtc_val;
                 framebuffer.flip();
-                program.frame_finished();
+                program.frame_finished(&mut framebuffer.back_buffer);
             }
         }
     }

@@ -5,9 +5,10 @@ authors = ["burgerindividual"]
 edition = "2021"
 
 [dependencies]
-cortex-m = {version = "0.7.7", features = ["inline-asm"]}
+cortex-m = {version = "0.7.7", features = ["inline-asm", "cm7"]}
 teensy4-panic = "0.2.2"
 teensy4-bsp = {version = "0.4.3", features = ["rt"]}
+rand = {version = "0.8.5", default-features = false, features = ["small_rng"]}
 
 [profile.release]
 opt-level = 3

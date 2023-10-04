@@ -2,10 +2,11 @@ use teensy4_bsp::pins::imxrt_iomuxc::gpio::Pin;
 use teensy4_bsp::pins::imxrt_iomuxc::*;
 use teensy4_bsp::pins::t40::*;
 
-use crate::framebuffer::{COLOR_COUNT, HEIGHT};
+use crate::framebuffer::ColorLines;
+use crate::framebuffer::Framebuffer::HEIGHT;
 use crate::intrinsics::BATCH_SIZE;
 
-pub const SHIFT_COUNT: u8 = (HEIGHT * COLOR_COUNT) as u8;
+pub const SHIFT_COUNT: u8 = (Framebuffer::HEIGHT * ColorLines::COUNT) as u8;
 
 pub const GPIO6_PIN_MASK: u32 = get_pin_mask(&GPIO6_BATCHED_PIN_OFFSETS);
 pub const GPIO9_PIN_MASK: u32 = (1 << P2::OFFSET) | (1 << P3::OFFSET);
