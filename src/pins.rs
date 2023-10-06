@@ -2,13 +2,10 @@ use teensy4_bsp::pins::imxrt_iomuxc::gpio::Pin;
 use teensy4_bsp::pins::imxrt_iomuxc::*;
 use teensy4_bsp::pins::t40::*;
 
-use crate::framebuffer::ColorLines;
-use crate::framebuffer::Framebuffer::HEIGHT;
+use crate::framebuffer::{ColorLines, Framebuffer};
 use crate::intrinsics::BATCH_SIZE;
 
-pub const SHIFT_COUNT: u8 = (Framebuffer::HEIGHT * ColorLines::COUNT) as u8;
-
-pub const GPIO6_PIN_MASK: u32 = get_pin_mask(&GPIO6_BATCHED_PIN_OFFSETS);
+pub const GPIO6_PIN_MASK: u32 = create_pin_mask(&GPIO6_BATCHED_PIN_OFFSETS);
 pub const GPIO9_PIN_MASK: u32 = (1 << P2::OFFSET) | (1 << P3::OFFSET);
 
 pub const LED_OUTPUT_PIN_INDICES: [usize; 12] = [1, 0, 17, 16, 19, 18, 14, 15, 22, 23, 20, 21];
@@ -33,7 +30,7 @@ pub const GPIO6_BATCHED_PIN_OFFSETS: [[usize; BATCH_SIZE]; 3] = [
     ],
 ];
 
-pub const fn get_pin_mask(pins: &[[usize; BATCH_SIZE]]) -> u32 {
+pub const fn create_pin_mask(pins: &[[usize; BATCH_SIZE]]) -> u32 {
     let flattened_offsets = pins.flatten();
     let mut mask = 0_u32;
 

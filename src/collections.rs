@@ -33,7 +33,7 @@ impl<const LEN: usize, T> InlineVec<LEN, T> {
     #[inline(always)]
     pub unsafe fn pop(&mut self) -> T {
         self.count -= 1;
-        self.data.get_unchecked(self.count).assume_init()
+        self.data.get_unchecked(self.count).assume_init_read()
     }
 
     #[inline(always)]
@@ -41,6 +41,13 @@ impl<const LEN: usize, T> InlineVec<LEN, T> {
         // SAFETY: count shouldn't ever be able to be incremented past LEN, and the contents should
         // be initialized
         unsafe { MaybeUninit::slice_assume_init_ref(self.data.get_unchecked(0..(self.count))) }
+    }
+
+    #[inline(always)]
+    pub fn get_slice_mut(&mut self) -> &mut [T] {
+        // SAFETY: count shouldn't ever be able to be incremented past LEN, and the contents should
+        // be initialized
+        unsafe { MaybeUninit::slice_assume_init_mut(self.data.get_unchecked_mut(0..(self.count))) }
     }
 }
 
@@ -52,3 +59,14 @@ impl<const LEN: usize, T> Default for InlineVec<LEN, T> {
         }
     }
 }
+
+impl<const LEN: usize, T: Copy> Clone for InlineVec<LEN, T> {
+    fn clone(&self) -> Self {
+        Self {
+            data: self.data.clone(),
+            count: self.count,
+        }
+    }
+}
+
+impl<const LEN: usize, T: Copy> Copy for InlineVec<LEN, T> {}
