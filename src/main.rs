@@ -55,5 +55,6 @@ fn main() -> ! {
 
     loop {
         program.render(&mut driver);
+        driver.drive_post_render();
     }
 }

@@ -163,20 +163,25 @@ impl ScreenDriver {
 
     #[inline(always)]
     pub fn drive_post_render(&mut self) {
-        match self.state {
-            DriverState::ClockOut => {
-                self.drive_clock_out();
-                self.state = DriverState::DataOut;
-                yield_cycles::<{ DriverState::ClockOut.post_delay_cycles() }>();
-            }
-            DriverState::DataOut => {
-                self.drive_data_out::<true>();
-                self.state = DriverState::ClockOut;
-                yield_cycles::<{ DriverState::DataOut.post_delay_cycles() }>();
+        let mut frame_flipped = false;
+
+        while !frame_flipped {
+            match self.state {
+                DriverState::ClockOut => {
+                    self.drive_clock_out();
+                    self.state = DriverState::DataOut;
+                    yield_cycles::<{ DriverState::ClockOut.post_delay_cycles() }>();
+                }
+                DriverState::DataOut => {
+                    frame_flipped = self.drive_data_out::<true>();
+                    self.state = DriverState::ClockOut;
+                    yield_cycles::<{ DriverState::DataOut.post_delay_cycles() }>();
+                }
             }
         }
     }
 
+    // #[inline(never)]
     fn drive_clock_out(&mut self) {
         self.clock_pulse_bits = 1 << P2::OFFSET;
         self.clock_pulse_bits |= if self.current_shift_bit == 0 {
@@ -188,12 +193,15 @@ impl ScreenDriver {
         write_reg!(ral::gpio, self.gpio9, DR_SET, self.clock_pulse_bits);
     }
 
-    fn drive_data_out<const ALLOW_FRAME_FLIP: bool>(&mut self) {
+    // #[inline(never)]
+    fn drive_data_out<const ALLOW_FRAME_FLIP: bool>(&mut self) -> bool {
         write_reg!(ral::gpio, self.gpio9, DR_CLEAR, self.clock_pulse_bits);
 
         // between the clock pulse and the serial output changing, 3 cycles of delay is expected.
         // in any scenario, this is already satisfied by the code setting up the next serial output,
         // so it should be fine to exclude an excess yield.
+
+        let mut frame_flipped = false;
 
         self.current_shift_bit += 1;
         if self.current_shift_bit == Self::SHIFT_COUNT {
@@ -209,6 +217,7 @@ impl ScreenDriver {
                 if self.last_rtc_val != current_rtc_val {
                     self.last_rtc_val = current_rtc_val;
                     self.framebuffer.flip();
+                    frame_flipped = true;
                 }
             }
         }
@@ -242,5 +251,7 @@ impl ScreenDriver {
         }
 
         write_reg!(ral::gpio, self.gpio6, DR, gpio6_out_buffer);
+
+        frame_flipped
     }
 }
