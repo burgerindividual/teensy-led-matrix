@@ -67,8 +67,8 @@ enum DriverState {
 impl DriverState {
     pub const fn post_delay_cycles(&self) -> u32 {
         match self {
-            DriverState::ClockOut => (125_u32 * 6).div_ceil(10), // 25_u32 at 5v
-            DriverState::DataOut => (110_u32 * 6).div_ceil(10),  // 22_u32 at 5v
+            DriverState::ClockOut => (25_u32 * 6).div_ceil(10), // 25_u32 at 5v 125_u32
+            DriverState::DataOut => (22_u32 * 6).div_ceil(10),  // 22_u32 at 5v 110_u32
         }
     }
 }
@@ -141,7 +141,7 @@ impl ScreenDriver {
         self.rtc_mask = frame_rate.rtc_mask();
     }
 
-    #[inline(always)]
+    #[inline(never)]
     pub fn drive_mid_render(&mut self) {
         if DWT::cycle_count() >= self.target_cycle_count {
             let post_delay_cycles = self.state.post_delay_cycles();
@@ -161,7 +161,7 @@ impl ScreenDriver {
         }
     }
 
-    #[inline(always)]
+    #[inline(never)]
     pub fn drive_post_render(&mut self) {
         let mut frame_flipped = false;
 
@@ -181,7 +181,7 @@ impl ScreenDriver {
         }
     }
 
-    // #[inline(never)]
+    #[inline(always)]
     fn drive_clock_out(&mut self) {
         self.clock_pulse_bits = 1 << P2::OFFSET;
         self.clock_pulse_bits |= if self.current_shift_bit == 0 {
@@ -193,7 +193,7 @@ impl ScreenDriver {
         write_reg!(ral::gpio, self.gpio9, DR_SET, self.clock_pulse_bits);
     }
 
-    // #[inline(never)]
+    #[inline(always)]
     fn drive_data_out<const ALLOW_FRAME_FLIP: bool>(&mut self) -> bool {
         write_reg!(ral::gpio, self.gpio9, DR_CLEAR, self.clock_pulse_bits);
 

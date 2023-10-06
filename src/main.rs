@@ -18,9 +18,9 @@ mod driver;
 mod program;
 
 use cortex_m::Peripherals;
-use teensy4_bsp::board;
 use teensy4_bsp::hal::iomuxc::into_pads;
 use teensy4_bsp::pins::t40::*;
+use teensy4_bsp::{board, clock_power};
 #[allow(unused_imports)]
 use teensy4_panic as _;
 
@@ -33,6 +33,12 @@ pub type CurrentProgram = HueCycle;
 fn main() -> ! {
     let mut teensy_peripherals = board::instances();
     let mut cortex_peripherals = Peripherals::take().unwrap();
+
+    clock_power::setup(
+        &mut teensy_peripherals.CCM,
+        &mut teensy_peripherals.CCM_ANALOG,
+        &mut teensy_peripherals.DCDC,
+    );
 
     cortex_peripherals.DCB.enable_trace();
     cortex_peripherals.DWT.enable_cycle_counter();
