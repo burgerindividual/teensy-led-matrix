@@ -11,9 +11,9 @@ impl Program for HueCycle {
         //     for x in 0..Framebuffer::WIDTH {
         //         unsafe {
         //             driver.framebuffer.back_buffer.set_led_unchecked(
-        //                 (x + y) * 10,
-        //                 3,
-        //                 Color::from_rgb(0, 255, 0),
+        //                 x,
+        //                 y,
+        //                 Color::from_rgb(((x + y) * 10) as u8, 255, 0),
         //             );
         //         }
         //     }

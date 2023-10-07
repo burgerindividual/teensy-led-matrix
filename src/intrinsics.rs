@@ -48,13 +48,6 @@ pub fn yield_cycles<const CYCLES: u32>() {
     }
 }
 
-/// good option for more precise, longer timing requirements
-#[inline(always)]
-pub fn wait_cycles<const CYCLES: u32>(start_cycle_count: u32) {
-    let target_cycle_count = start_cycle_count + CYCLES;
-    while DWT::cycle_count() < target_cycle_count {}
-}
-
 pub const fn ns_to_cycles<const NS: u32>() -> u32 {
     ((NS as u64) * (ARM_FREQUENCY as u64)).div_ceil(1_000_000_000_u64) as u32
 }

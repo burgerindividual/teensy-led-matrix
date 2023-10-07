@@ -62,15 +62,15 @@ impl FrameRate {
 
 #[derive(Copy, Clone)]
 enum DriverState {
-    ClockOut,
-    DataOut,
+    ClockOn,
+    ClockOffDataOut,
 }
 
 impl DriverState {
-    pub const fn post_delay_cycles(&self) -> u32 {
+    pub const fn pre_delay_cycles(&self) -> u32 {
         match self {
-            DriverState::ClockOut => ns_to_cycles::<25>(), // 25_u32 at 5v, 125_u32 at 2.2v
-            DriverState::DataOut => ns_to_cycles::<22>(),  // 22_u32 at 5v, 110_u32 at 2.2v
+            DriverState::ClockOn => ns_to_cycles::<110>(), // 22 at 4.5v, 110 at 2v
+            DriverState::ClockOffDataOut => ns_to_cycles::<125>(), // 25 at 4.5v, 125 at 2v
         }
     }
 }
@@ -81,7 +81,7 @@ pub struct ScreenDriver {
     pub framebuffer: Framebuffer,
     pub current_shift_bit: u8,
     state: DriverState,
-    target_cycle_count: u32,
+    delay_start_cycles: u32,
     clock_pulse_bits: u32,
     last_rtc_val: u32,
 
@@ -131,8 +131,8 @@ impl ScreenDriver {
             rtc_mask: FrameRate::Fps64.rtc_mask(),
             framebuffer: Framebuffer::default(),
             current_shift_bit: 0,
-            state: DriverState::ClockOut,
-            target_cycle_count: 0,
+            state: DriverState::ClockOn,
+            delay_start_cycles: DWT::cycle_count(),
             clock_pulse_bits: 0,
             last_rtc_val: 0,
             gpio6,
@@ -147,21 +147,20 @@ impl ScreenDriver {
 
     #[inline(always)]
     pub fn drive_mid_render(&mut self) {
-        if DWT::cycle_count() >= self.target_cycle_count {
-            let post_delay_cycles = self.state.post_delay_cycles();
-
+        if DWT::cycle_count().wrapping_sub(self.delay_start_cycles) >= self.state.pre_delay_cycles()
+        {
             match self.state {
-                DriverState::ClockOut => {
-                    self.drive_clock_out();
-                    self.state = DriverState::DataOut;
+                DriverState::ClockOn => {
+                    self.drive_clock_on();
+                    self.state = DriverState::ClockOffDataOut;
                 }
-                DriverState::DataOut => {
-                    self.drive_data_out::<false>();
-                    self.state = DriverState::ClockOut;
+                DriverState::ClockOffDataOut => {
+                    self.drive_clock_off_data_out::<false>();
+                    self.state = DriverState::ClockOn;
                 }
             }
 
-            self.target_cycle_count = DWT::cycle_count() + post_delay_cycles;
+            self.delay_start_cycles = DWT::cycle_count();
         }
     }
 
@@ -171,22 +170,22 @@ impl ScreenDriver {
 
         while !frame_flipped {
             match self.state {
-                DriverState::ClockOut => {
-                    self.drive_clock_out();
-                    self.state = DriverState::DataOut;
-                    yield_cycles::<{ DriverState::ClockOut.post_delay_cycles() }>();
+                DriverState::ClockOn => {
+                    yield_cycles::<{ DriverState::ClockOn.pre_delay_cycles() }>();
+                    self.drive_clock_on();
+                    self.state = DriverState::ClockOffDataOut;
                 }
-                DriverState::DataOut => {
-                    frame_flipped = self.drive_data_out::<true>();
-                    self.state = DriverState::ClockOut;
-                    yield_cycles::<{ DriverState::DataOut.post_delay_cycles() }>();
+                DriverState::ClockOffDataOut => {
+                    yield_cycles::<{ DriverState::ClockOffDataOut.pre_delay_cycles() }>();
+                    frame_flipped = self.drive_clock_off_data_out::<true>();
+                    self.state = DriverState::ClockOn;
                 }
             }
         }
     }
 
     #[inline(always)]
-    fn drive_clock_out(&mut self) {
+    fn drive_clock_on(&mut self) {
         self.clock_pulse_bits = 1 << P2::OFFSET;
         self.clock_pulse_bits |= if self.current_shift_bit == 0 {
             1 << P3::OFFSET
@@ -198,7 +197,7 @@ impl ScreenDriver {
     }
 
     #[inline(always)]
-    fn drive_data_out<const ALLOW_FRAME_FLIP: bool>(&mut self) -> bool {
+    fn drive_clock_off_data_out<const ALLOW_FRAME_FLIP: bool>(&mut self) -> bool {
         write_reg!(ral::gpio, self.gpio9, DR_CLEAR, self.clock_pulse_bits);
 
         // between the clock pulse and the serial output changing, 3 cycles of delay is expected.
