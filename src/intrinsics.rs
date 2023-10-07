@@ -2,6 +2,7 @@ use core::hint::spin_loop;
 
 use cortex_m::peripheral::DWT;
 use cortex_m::register::apsr;
+use teensy4_bsp::board::ARM_FREQUENCY;
 
 extern "unadjusted" {
     #[link_name = "llvm.arm.uadd8"]
@@ -32,15 +33,28 @@ pub fn pwm_pulse_batched(
     *out_buffer |= ((apsr >> 19) & 0b1) << bit_offsets[3];
 }
 
+/// good option for shorter, less precise timing requirements (this will also use less power)
 #[inline(always)]
 pub fn yield_cycles<const CYCLES: u32>() {
-    for _ in 0..CYCLES {
+    // 148 seems to be the maximum that LLVM wants to unroll this, so do batches of 148 first
+    for _ in 0..(CYCLES / 148) {
+        for _ in 0..148 {
+            spin_loop();
+        }
+    }
+    // do remaining
+    for _ in 0..(CYCLES % 148) {
         spin_loop();
     }
 }
 
+/// good option for more precise, longer timing requirements
 #[inline(always)]
 pub fn wait_cycles<const CYCLES: u32>(start_cycle_count: u32) {
     let target_cycle_count = start_cycle_count + CYCLES;
     while DWT::cycle_count() < target_cycle_count {}
+}
+
+pub const fn ns_to_cycles<const NS: u32>() -> u32 {
+    ((NS as u64) * (ARM_FREQUENCY as u64)).div_ceil(1_000_000_000_u64) as u32
 }

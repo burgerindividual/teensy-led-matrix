@@ -2,7 +2,6 @@ use teensy4_bsp::pins::imxrt_iomuxc::gpio::Pin;
 use teensy4_bsp::pins::imxrt_iomuxc::*;
 use teensy4_bsp::pins::t40::*;
 
-use crate::framebuffer::{ColorLines, Framebuffer};
 use crate::intrinsics::BATCH_SIZE;
 
 pub const GPIO6_PIN_MASK: u32 = create_pin_mask(&GPIO6_BATCHED_PIN_OFFSETS);

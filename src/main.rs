@@ -32,13 +32,14 @@ pub type CurrentProgram = HueCycle;
 #[teensy4_bsp::rt::entry]
 fn main() -> ! {
     let mut teensy_peripherals = board::instances();
-    let mut cortex_peripherals = Peripherals::take().unwrap();
 
     clock_power::setup(
         &mut teensy_peripherals.CCM,
         &mut teensy_peripherals.CCM_ANALOG,
         &mut teensy_peripherals.DCDC,
     );
+
+    let mut cortex_peripherals = Peripherals::take().unwrap();
 
     cortex_peripherals.DCB.enable_trace();
     cortex_peripherals.DWT.enable_cycle_counter();
@@ -52,6 +53,7 @@ fn main() -> ! {
         teensy_peripherals.GPIO9,
         teensy_peripherals.SNVS,
         &mut teensy_peripherals.IOMUXC_GPR,
+        &mut teensy_peripherals.CCM,
         &mut erased_pins,
     );
 

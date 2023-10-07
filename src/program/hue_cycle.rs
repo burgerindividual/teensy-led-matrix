@@ -7,16 +7,38 @@ pub struct HueCycle {}
 
 impl Program for HueCycle {
     fn init(&mut self, driver: &mut ScreenDriver) {
-        for y in 0..Framebuffer::HEIGHT {
-            for x in 0..Framebuffer::WIDTH {
-                unsafe {
-                    driver.framebuffer.back_buffer.set_led_unchecked(
-                        (x + y) * 10,
-                        3,
-                        Color::from_rgb(0, 255, 0),
-                    );
-                }
-            }
+        // for y in 0..Framebuffer::HEIGHT {
+        //     for x in 0..Framebuffer::WIDTH {
+        //         unsafe {
+        //             driver.framebuffer.back_buffer.set_led_unchecked(
+        //                 (x + y) * 10,
+        //                 3,
+        //                 Color::from_rgb(0, 255, 0),
+        //             );
+        //         }
+        //     }
+        // }
+        unsafe {
+            driver
+                .framebuffer
+                .back_buffer
+                .set_led_unchecked(0, 3, Color::from_rgb(0, 255, 0));
+            driver
+                .framebuffer
+                .back_buffer
+                .set_led_unchecked(0, 4, Color::from_rgb(127, 255, 0));
+            driver
+                .framebuffer
+                .back_buffer
+                .set_led_unchecked(0, 5, Color::from_rgb(255, 255, 0));
+            driver
+                .framebuffer
+                .back_buffer
+                .set_led_unchecked(0, 6, Color::from_rgb(255, 127, 0));
+            driver
+                .framebuffer
+                .back_buffer
+                .set_led_unchecked(0, 7, Color::from_rgb(255, 0, 0));
         }
         driver.set_target_frame_rate(FrameRate::Fps512);
         // necessary to make sure the front buffer is initialized

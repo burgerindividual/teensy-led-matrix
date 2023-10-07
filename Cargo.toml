@@ -8,7 +8,7 @@ edition = "2021"
 cortex-m = {version = "0.7.7", features = ["inline-asm", "cm7"]}
 teensy4-panic = "0.2.2"
 teensy4-bsp = {git = "https://github.com/burgerindividual/teensy4-rs.git", features = ["rt"]}
-rand = {version = "0.8.5", default-features = false, features = ["small_rng"]}
+crunchy = "0.2.2"
 
 [profile.release]
 opt-level = 3

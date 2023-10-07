@@ -1,16 +1,18 @@
 use core::hint::spin_loop;
 
 use cortex_m::peripheral::DWT;
+use teensy4_bsp::hal::ccm::clock_gate;
 use teensy4_bsp::hal::iomuxc::gpio::Pin;
 use teensy4_bsp::pins::t40::{ErasedPins, P2, P3};
 use teensy4_bsp::ral;
+use teensy4_bsp::ral::ccm::CCM;
 use teensy4_bsp::ral::gpio::{GPIO6, GPIO9};
 use teensy4_bsp::ral::iomuxc_gpr::IOMUXC_GPR;
-use teensy4_bsp::ral::snvs::{HPCR, SNVS};
+use teensy4_bsp::ral::snvs::SNVS;
 use teensy4_bsp::ral::{modify_reg, read_reg, write_reg};
 
 use crate::framebuffer::{ColorLines, Framebuffer};
-use crate::intrinsics::{pwm_pulse_batched, yield_cycles, BATCH_SIZE};
+use crate::intrinsics::{ns_to_cycles, pwm_pulse_batched, yield_cycles, BATCH_SIZE};
 use crate::pins::*;
 
 #[repr(u32)]
@@ -67,8 +69,8 @@ enum DriverState {
 impl DriverState {
     pub const fn post_delay_cycles(&self) -> u32 {
         match self {
-            DriverState::ClockOut => (25_u32 * 6).div_ceil(10), // 25_u32 at 5v 125_u32
-            DriverState::DataOut => (22_u32 * 6).div_ceil(10),  // 22_u32 at 5v 110_u32
+            DriverState::ClockOut => ns_to_cycles::<25>(), // 25_u32 at 5v, 125_u32 at 2.2v
+            DriverState::DataOut => ns_to_cycles::<22>(),  // 22_u32 at 5v, 110_u32 at 2.2v
         }
     }
 }
@@ -96,6 +98,7 @@ impl ScreenDriver {
         gpio9: GPIO9,
         snvs: SNVS,
         iomuxc_gpr: &mut IOMUXC_GPR,
+        ccm: &mut CCM,
         erased_pins: &mut ErasedPins,
     ) -> Self {
         // configure LED output pins
@@ -115,11 +118,12 @@ impl ScreenDriver {
         modify_reg!(ral::gpio, gpio6, GDIR, |gdir| gdir | GPIO6_PIN_MASK);
         modify_reg!(ral::gpio, gpio9, GDIR, |gdir| gdir | GPIO9_PIN_MASK);
 
+        // enable SNVS HP clock gate because the RTC is on it
+        clock_gate::snvs_hp().set(ccm, clock_gate::ON);
+
         // enable RTC and wait for it to get set
-        modify_reg!(ral::gpio, snvs, HPCR, |hpcr| hpcr
-            | HPCR::RTC_EN::RW::RTC_EN_1);
-        while (read_reg!(ral::gpio, snvs, HPCR) & HPCR::RTC_EN::mask) != HPCR::RTC_EN::RW::RTC_EN_1
-        {
+        modify_reg!(ral::snvs, snvs, HPCR, RTC_EN: RTC_EN_1);
+        while read_reg!(ral::snvs, snvs, HPCR, RTC_EN != RTC_EN_1) {
             spin_loop();
         }
 
@@ -141,7 +145,7 @@ impl ScreenDriver {
         self.rtc_mask = frame_rate.rtc_mask();
     }
 
-    #[inline(never)]
+    #[inline(always)]
     pub fn drive_mid_render(&mut self) {
         if DWT::cycle_count() >= self.target_cycle_count {
             let post_delay_cycles = self.state.post_delay_cycles();
@@ -161,7 +165,7 @@ impl ScreenDriver {
         }
     }
 
-    #[inline(never)]
+    #[inline(always)]
     pub fn drive_post_render(&mut self) {
         let mut frame_flipped = false;
 
@@ -210,7 +214,7 @@ impl ScreenDriver {
             if ALLOW_FRAME_FLIP {
                 // the mask chooses which bits are tested against, which can effectively set the
                 // framerate
-                let current_rtc_val = read_reg!(ral::gpio, self.snvs, HPRTCLR) & self.rtc_mask;
+                let current_rtc_val = read_reg!(ral::snvs, self.snvs, HPRTCLR) & self.rtc_mask;
 
                 // Frame advance is done here to effectively cause a vertical sync, as we
                 // will only be updating the FB after all scanlines are written.
