@@ -50,7 +50,7 @@ pub fn led_output_pin_setup<P: Iomuxc>(pin: &mut P) {
     configure(
         pin,
         Config::zero()
-            .set_speed(Speed::Max)
+            .set_speed(Speed::Low) // Low speed with a fast slew rate is still 50MHz, which is fast enough for our use case
             .set_drive_strength(DriveStrength::R0)
             .set_pull_keeper(None)
             .set_hysteresis(Hysteresis::Disabled)
@@ -67,11 +67,28 @@ pub fn clock_pin_setup<P: Iomuxc>(pin: &mut P) {
     configure(
         pin,
         Config::zero()
-            .set_speed(Speed::Max)
+            .set_speed(Speed::Low) // Low speed with a fast slew rate is still 50MHz, which is fast enough for our use case
             .set_drive_strength(DriveStrength::R0)
             .set_pull_keeper(None)
             .set_hysteresis(Hysteresis::Disabled)
             .set_slew_rate(SlewRate::Fast)
+            .set_open_drain(OpenDrain::Disabled),
+    );
+}
+
+pub fn button_pin_setup<P: Iomuxc>(pin: &mut P) {
+    // configure to be GPIO, which is done by setting ALT to 5
+    alternate(pin, 5);
+    // we *do* want to read this pin, so force enable input
+    set_sion(pin);
+    configure(
+        pin,
+        Config::zero()
+            .set_speed(Speed::Low) // Low speed with a fast slew rate is still 50MHz, which is fast enough for our use case
+            .set_drive_strength(DriveStrength::R0)
+            .set_pull_keeper(Some(PullKeeper::Keeper))
+            .set_hysteresis(Hysteresis::Disabled)
+            .set_slew_rate(SlewRate::Slow)
             .set_open_drain(OpenDrain::Disabled),
     );
 }

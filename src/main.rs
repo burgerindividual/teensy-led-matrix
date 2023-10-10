@@ -7,6 +7,8 @@
 #![no_std]
 #![no_main]
 
+extern crate alloc;
+
 mod color;
 mod framebuffer;
 mod intrinsics;
@@ -15,54 +17,63 @@ mod take_mut;
 
 mod collections;
 mod driver;
+mod peripherals;
 mod program;
+mod unwrap;
 
-use cortex_m::Peripherals;
+use alloc::boxed::Box;
+
+use embedded_alloc::Heap;
+use teensy4_bsp::board::prepare_clocks_and_power;
 use teensy4_bsp::hal::iomuxc::into_pads;
 use teensy4_bsp::pins::t40::*;
-use teensy4_bsp::{board, clock_power};
 #[allow(unused_imports)]
 use teensy4_panic as _;
 
 use crate::driver::ScreenDriver;
+use crate::intrinsics::init_heap;
+use crate::peripherals::Peripherals;
 use crate::program::*;
+use crate::unwrap::unwrap;
 
-pub type CurrentProgram = HueCycle;
+#[global_allocator]
+static mut HEAP: Heap = Heap::empty();
+
+pub const PROGRAM_CONSTRUCTORS: [fn(&mut Peripherals) -> Box<dyn Program>; 1] = [HueCycle::new];
 
 #[teensy4_bsp::rt::entry]
-fn main() -> ! {
-    let mut teensy_peripherals = board::instances();
+unsafe fn main() -> ! {
+    init_heap(&mut HEAP);
 
-    clock_power::setup(
-        &mut teensy_peripherals.CCM,
-        &mut teensy_peripherals.CCM_ANALOG,
-        &mut teensy_peripherals.DCDC,
+    let mut peripherals = Peripherals::instance();
+
+    prepare_clocks_and_power(
+        unwrap(peripherals.CCM.as_mut()),
+        unwrap(peripherals.CCM_ANALOG.as_mut()),
+        unwrap(peripherals.DCDC.as_mut()),
     );
 
-    let mut cortex_peripherals = Peripherals::take().unwrap();
+    unwrap(peripherals.DCB.as_mut()).enable_trace();
+    unwrap(peripherals.DWT.as_mut()).enable_cycle_counter();
 
-    cortex_peripherals.DCB.enable_trace();
-    cortex_peripherals.DWT.enable_cycle_counter();
-
-    let iomuxc = into_pads(teensy_peripherals.IOMUXC);
+    let iomuxc = into_pads(unwrap(peripherals.IOMUXC.take()));
     let pins = from_pads(iomuxc);
     let mut erased_pins = pins.erase();
 
     let mut driver = ScreenDriver::new(
-        teensy_peripherals.GPIO6,
-        teensy_peripherals.GPIO9,
-        teensy_peripherals.SNVS,
-        &mut teensy_peripherals.IOMUXC_GPR,
-        &mut teensy_peripherals.CCM,
+        unwrap(peripherals.GPIO6.take()),
+        unwrap(peripherals.GPIO9.take()),
+        unwrap(peripherals.SNVS.take()),
+        unwrap(peripherals.IOMUXC_GPR.as_mut()),
+        unwrap(peripherals.CCM.as_mut()),
         &mut erased_pins,
     );
 
-    // let mut program = CurrentProgram::new(&mut teensy_peripherals.TRNG);
-    let mut program = CurrentProgram {};
-    program.init(&mut driver);
+    let mut current_program = PROGRAM_CONSTRUCTORS[0](&mut peripherals);
+    current_program.init(&mut driver);
 
     loop {
-        program.render(&mut driver);
+        current_program.render(&mut driver);
         driver.drive_post_render();
     }
 }

@@ -1,8 +1,11 @@
 use core::hint::spin_loop;
+use core::mem::MaybeUninit;
+use core::ptr::addr_of_mut;
 
-use cortex_m::peripheral::DWT;
 use cortex_m::register::apsr;
+use embedded_alloc::Heap;
 use teensy4_bsp::board::ARM_FREQUENCY;
+use teensy4_bsp::rt::{heap_end, heap_start};
 
 extern "unadjusted" {
     #[link_name = "llvm.arm.uadd8"]
@@ -50,4 +53,15 @@ pub fn yield_cycles<const CYCLES: u32>() {
 
 pub const fn ns_to_cycles<const NS: u32>() -> u32 {
     ((NS as u64) * (ARM_FREQUENCY as u64)).div_ceil(1_000_000_000_u64) as u32
+}
+
+pub fn init_heap(heap: &mut Heap) {
+    // // the runtime already has a dedicated spot in OCRAM for us to use as the heap
+    // let heap_start = heap_start() as usize;
+    // let heap_size = heap_start - heap_end() as usize;
+    unsafe {
+        const HEAP_SIZE: usize = 16 * 1024;
+        static mut HEAP_AREA: MaybeUninit<[u8; HEAP_SIZE]> = MaybeUninit::uninit();
+        heap.init(addr_of_mut!(HEAP_AREA) as usize, HEAP_SIZE);
+    }
 }

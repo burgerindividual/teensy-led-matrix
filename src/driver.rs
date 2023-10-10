@@ -186,9 +186,9 @@ impl ScreenDriver {
 
     #[inline(always)]
     fn drive_clock_on(&mut self) {
-        self.clock_pulse_bits = 1 << P2::OFFSET;
+        self.clock_pulse_bits = 0b1 << P2::OFFSET;
         self.clock_pulse_bits |= if self.current_shift_bit == 0 {
-            1 << P3::OFFSET
+            0b1 << P3::OFFSET
         } else {
             0
         };

@@ -3,8 +3,8 @@ target = "thumbv7em-none-eabihf"
 
 [target.thumbv7em-none-eabihf]
 rustflags = [
+    "--cfg", "cm7",
     "-Ctarget-cpu=cortex-m7",
     "-Clink-arg=-Tt4link.x",
-    "-Clink-arg=-Tdefmt.x",
-    "-Clinker-plugin-lto"
+    "-Clinker-plugin-lto",
 ]

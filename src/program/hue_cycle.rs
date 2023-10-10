@@ -1,9 +1,18 @@
+use alloc::boxed::Box;
+
 use crate::color::Color;
 use crate::driver::{FrameRate, ScreenDriver};
 use crate::framebuffer::Framebuffer;
+use crate::peripherals::Peripherals;
 use crate::program::Program;
 
 pub struct HueCycle {}
+
+impl HueCycle {
+    pub(crate) fn new(_peripherals: &mut Peripherals) -> Box<dyn Program> {
+        Box::new(Self {})
+    }
+}
 
 impl Program for HueCycle {
     fn init(&mut self, driver: &mut ScreenDriver) {
