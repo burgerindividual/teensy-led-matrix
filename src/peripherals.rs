@@ -1,276 +1,504 @@
+use core::ptr;
+
 use cortex_m::peripheral::*;
-use teensy4_bsp::board;
 use teensy4_bsp::ral::*;
 
-use crate::unwrap::unwrap;
+// This module provides safe access to teensy board peripherals and cortex-m core
+// peripherals without codegen bloat, provided the following is upheld:
+// - CPU interrupts are always disabled, and there are no other cores on the machine.
 
-#[allow(non_snake_case)]
-pub struct Peripherals {
-    // teensy board peripherals
-    pub ADC1: &'static mut adc::ADC1,
-    pub ADC2: Option<adc::ADC2>,
-    pub ADC_ETC: Option<adc_etc::ADC_ETC>,
-    pub AIPSTZ1: Option<aipstz::AIPSTZ1>,
-    pub AIPSTZ2: Option<aipstz::AIPSTZ2>,
-    pub AIPSTZ3: Option<aipstz::AIPSTZ3>,
-    pub AIPSTZ4: Option<aipstz::AIPSTZ4>,
-    pub AOI1: Option<aoi::AOI1>,
-    pub AOI2: Option<aoi::AOI2>,
-    pub BEE: Option<bee::BEE>,
-    pub CAN1: Option<can::CAN1>,
-    pub CAN2: Option<can::CAN2>,
-    pub CAN3: Option<can3::CAN3>,
-    pub CCM: Option<ccm::CCM>,
-    pub CCM_ANALOG: Option<ccm_analog::CCM_ANALOG>,
-    pub CMP1: Option<cmp::CMP1>,
-    pub CMP2: Option<cmp::CMP2>,
-    pub CMP3: Option<cmp::CMP3>,
-    pub CMP4: Option<cmp::CMP4>,
-    pub CSI: Option<csi::CSI>,
-    pub CSU: Option<csu::CSU>,
-    pub DCDC: Option<dcdc::DCDC>,
-    pub DCP: Option<dcp::DCP>,
-    pub DMA: Option<dma::DMA>,
-    pub DMAMUX: Option<dmamux::DMAMUX>,
-    pub ENC1: Option<enc::ENC1>,
-    pub ENC2: Option<enc::ENC2>,
-    pub ENC3: Option<enc::ENC3>,
-    pub ENC4: Option<enc::ENC4>,
-    pub ENET1: Option<enet::ENET1>,
-    pub ENET2: Option<enet::ENET2>,
-    pub EWM: Option<ewm::EWM>,
-    pub FLEXIO1: Option<flexio::FLEXIO1>,
-    pub FLEXIO2: Option<flexio::FLEXIO2>,
-    pub FLEXIO3: Option<flexio::FLEXIO3>,
-    pub FLEXRAM: Option<flexram::FLEXRAM>,
-    pub FLEXSPI1: Option<flexspi::FLEXSPI1>,
-    pub FLEXSPI2: Option<flexspi::FLEXSPI2>,
-    pub GPC: Option<gpc::GPC>,
-    pub GPIO1: Option<gpio::GPIO1>,
-    pub GPIO5: Option<gpio::GPIO5>,
-    pub GPIO2: Option<gpio::GPIO2>,
-    pub GPIO3: Option<gpio::GPIO3>,
-    pub GPIO4: Option<gpio::GPIO4>,
-    pub GPIO6: Option<gpio::GPIO6>,
-    pub GPIO7: Option<gpio::GPIO7>,
-    pub GPIO8: Option<gpio::GPIO8>,
-    pub GPIO9: Option<gpio::GPIO9>,
-    pub GPT1: Option<gpt::GPT1>,
-    pub GPT2: Option<gpt::GPT2>,
-    pub IOMUXC: Option<iomuxc::IOMUXC>,
-    pub IOMUXC_GPR: Option<iomuxc_gpr::IOMUXC_GPR>,
-    pub IOMUXC_SNVS: Option<iomuxc_snvs::IOMUXC_SNVS>,
-    pub IOMUXC_SNVS_GPR: Option<iomuxc_snvs_gpr::IOMUXC_SNVS_GPR>,
-    pub KPP: Option<kpp::KPP>,
-    pub LCDIF: Option<lcdif::LCDIF>,
-    pub LPI2C1: Option<lpi2c::LPI2C1>,
-    pub LPI2C2: Option<lpi2c::LPI2C2>,
-    pub LPI2C3: Option<lpi2c::LPI2C3>,
-    pub LPI2C4: Option<lpi2c::LPI2C4>,
-    pub LPSPI1: Option<lpspi::LPSPI1>,
-    pub LPSPI2: Option<lpspi::LPSPI2>,
-    pub LPSPI3: Option<lpspi::LPSPI3>,
-    pub LPSPI4: Option<lpspi::LPSPI4>,
-    pub LPUART1: Option<lpuart::LPUART1>,
-    pub LPUART2: Option<lpuart::LPUART2>,
-    pub LPUART3: Option<lpuart::LPUART3>,
-    pub LPUART4: Option<lpuart::LPUART4>,
-    pub LPUART5: Option<lpuart::LPUART5>,
-    pub LPUART6: Option<lpuart::LPUART6>,
-    pub LPUART7: Option<lpuart::LPUART7>,
-    pub LPUART8: Option<lpuart::LPUART8>,
-    pub OCOTP: Option<ocotp::OCOTP>,
-    pub PGC: Option<pgc::PGC>,
-    pub PIT: Option<pit::PIT>,
-    pub PMU: Option<pmu::PMU>,
-    pub PWM1: Option<pwm::PWM1>,
-    pub PWM2: Option<pwm::PWM2>,
-    pub PWM3: Option<pwm::PWM3>,
-    pub PWM4: Option<pwm::PWM4>,
-    pub PXP: Option<pxp::PXP>,
-    pub ROMC: Option<romc::ROMC>,
-    pub RTWDOG: Option<rtwdog::RTWDOG>,
-    pub SAI1: Option<sai::SAI1>,
-    pub SAI2: Option<sai::SAI2>,
-    pub SAI3: Option<sai::SAI3>,
-    pub SEMC: Option<semc::SEMC>,
-    pub SNVS: Option<snvs::SNVS>,
-    pub SPDIF: Option<spdif::SPDIF>,
-    pub SRC: Option<src::SRC>,
-    pub TEMPMON: Option<tempmon::TEMPMON>,
-    pub TMR1: Option<tmr::TMR1>,
-    pub TMR2: Option<tmr::TMR2>,
-    pub TMR3: Option<tmr::TMR3>,
-    pub TMR4: Option<tmr::TMR4>,
-    pub TRNG: Option<trng::TRNG>,
-    pub TSC: Option<tsc::TSC>,
-    pub USB1: Option<usb::USB1>,
-    pub USB2: Option<usb::USB2>,
-    pub USB_ANALOG: Option<usb_analog::USB_ANALOG>,
-    pub USBNC1: Option<usbnc::USBNC1>,
-    pub USBNC2: Option<usbnc::USBNC2>,
-    pub USBPHY1: Option<usbphy::USBPHY1>,
-    pub USBPHY2: Option<usbphy::USBPHY2>,
-    pub USDHC1: Option<usdhc::USDHC1>,
-    pub USDHC2: Option<usdhc::USDHC2>,
-    pub WDOG1: Option<wdog::WDOG1>,
-    pub WDOG2: Option<wdog::WDOG2>,
-    pub XBARA1: Option<xbara1::XBARA1>,
-    pub XBARB2: Option<xbarb::XBARB2>,
-    pub XBARB3: Option<xbarb::XBARB3>,
-    pub XTALOSC24M: Option<xtalosc24m::XTALOSC24M>,
-    // cortex-m core peripherals
-    #[cfg(cm7)]
-    pub AC: Option<AC>,
-    pub CBP: Option<CBP>,
-    pub CPUID: Option<CPUID>,
-    pub DCB: Option<DCB>,
-    pub DWT: Option<DWT>,
-    pub FPB: Option<FPB>,
-    pub FPU: Option<FPU>,
-    pub ICB: Option<ICB>,
-    pub ITM: Option<ITM>,
-    pub MPU: Option<MPU>,
-    pub NVIC: Option<NVIC>,
-    pub SAU: Option<SAU>,
-    pub SCB: Option<SCB>,
-    pub SYST: Option<SYST>,
-    pub TPIU: Option<TPIU>,
+// teensy board peripherals
+pub const fn adc1() -> adc::ADC1 {
+    unsafe { adc::ADC1::instance() }
 }
 
-impl Peripherals {
-    pub fn instance() -> Self {
-        let teensy_peripherals = board::instances();
-        let cortex_peripherals = unwrap(cortex_m::Peripherals::take());
+pub const fn adc2() -> adc::ADC2 {
+    unsafe { adc::ADC2::instance() }
+}
 
-        Self {
-            ADC1: Some(teensy_peripherals.ADC1),
-            ADC2: Some(teensy_peripherals.ADC2),
-            ADC_ETC: Some(teensy_peripherals.ADC_ETC),
-            AIPSTZ1: Some(teensy_peripherals.AIPSTZ1),
-            AIPSTZ2: Some(teensy_peripherals.AIPSTZ2),
-            AIPSTZ3: Some(teensy_peripherals.AIPSTZ3),
-            AIPSTZ4: Some(teensy_peripherals.AIPSTZ4),
-            AOI1: Some(teensy_peripherals.AOI1),
-            AOI2: Some(teensy_peripherals.AOI2),
-            BEE: Some(teensy_peripherals.BEE),
-            CAN1: Some(teensy_peripherals.CAN1),
-            CAN2: Some(teensy_peripherals.CAN2),
-            CAN3: Some(teensy_peripherals.CAN3),
-            CCM: Some(teensy_peripherals.CCM),
-            CCM_ANALOG: Some(teensy_peripherals.CCM_ANALOG),
-            CMP1: Some(teensy_peripherals.CMP1),
-            CMP2: Some(teensy_peripherals.CMP2),
-            CMP3: Some(teensy_peripherals.CMP3),
-            CMP4: Some(teensy_peripherals.CMP4),
-            CSI: Some(teensy_peripherals.CSI),
-            CSU: Some(teensy_peripherals.CSU),
-            DCDC: Some(teensy_peripherals.DCDC),
-            DCP: Some(teensy_peripherals.DCP),
-            DMA: Some(teensy_peripherals.DMA),
-            DMAMUX: Some(teensy_peripherals.DMAMUX),
-            ENC1: Some(teensy_peripherals.ENC1),
-            ENC2: Some(teensy_peripherals.ENC2),
-            ENC3: Some(teensy_peripherals.ENC3),
-            ENC4: Some(teensy_peripherals.ENC4),
-            ENET1: Some(teensy_peripherals.ENET1),
-            ENET2: Some(teensy_peripherals.ENET2),
-            EWM: Some(teensy_peripherals.EWM),
-            FLEXIO1: Some(teensy_peripherals.FLEXIO1),
-            FLEXIO2: Some(teensy_peripherals.FLEXIO2),
-            FLEXIO3: Some(teensy_peripherals.FLEXIO3),
-            FLEXRAM: Some(teensy_peripherals.FLEXRAM),
-            FLEXSPI1: Some(teensy_peripherals.FLEXSPI1),
-            FLEXSPI2: Some(teensy_peripherals.FLEXSPI2),
-            GPC: Some(teensy_peripherals.GPC),
-            GPIO1: Some(teensy_peripherals.GPIO1),
-            GPIO5: Some(teensy_peripherals.GPIO5),
-            GPIO2: Some(teensy_peripherals.GPIO2),
-            GPIO3: Some(teensy_peripherals.GPIO3),
-            GPIO4: Some(teensy_peripherals.GPIO4),
-            GPIO6: Some(teensy_peripherals.GPIO6),
-            GPIO7: Some(teensy_peripherals.GPIO7),
-            GPIO8: Some(teensy_peripherals.GPIO8),
-            GPIO9: Some(teensy_peripherals.GPIO9),
-            GPT1: Some(teensy_peripherals.GPT1),
-            GPT2: Some(teensy_peripherals.GPT2),
-            IOMUXC: Some(teensy_peripherals.IOMUXC),
-            IOMUXC_GPR: Some(teensy_peripherals.IOMUXC_GPR),
-            IOMUXC_SNVS: Some(teensy_peripherals.IOMUXC_SNVS),
-            IOMUXC_SNVS_GPR: Some(teensy_peripherals.IOMUXC_SNVS_GPR),
-            KPP: Some(teensy_peripherals.KPP),
-            LCDIF: Some(teensy_peripherals.LCDIF),
-            LPI2C1: Some(teensy_peripherals.LPI2C1),
-            LPI2C2: Some(teensy_peripherals.LPI2C2),
-            LPI2C3: Some(teensy_peripherals.LPI2C3),
-            LPI2C4: Some(teensy_peripherals.LPI2C4),
-            LPSPI1: Some(teensy_peripherals.LPSPI1),
-            LPSPI2: Some(teensy_peripherals.LPSPI2),
-            LPSPI3: Some(teensy_peripherals.LPSPI3),
-            LPSPI4: Some(teensy_peripherals.LPSPI4),
-            LPUART1: Some(teensy_peripherals.LPUART1),
-            LPUART2: Some(teensy_peripherals.LPUART2),
-            LPUART3: Some(teensy_peripherals.LPUART3),
-            LPUART4: Some(teensy_peripherals.LPUART4),
-            LPUART5: Some(teensy_peripherals.LPUART5),
-            LPUART6: Some(teensy_peripherals.LPUART6),
-            LPUART7: Some(teensy_peripherals.LPUART7),
-            LPUART8: Some(teensy_peripherals.LPUART8),
-            OCOTP: Some(teensy_peripherals.OCOTP),
-            PGC: Some(teensy_peripherals.PGC),
-            PIT: Some(teensy_peripherals.PIT),
-            PMU: Some(teensy_peripherals.PMU),
-            PWM1: Some(teensy_peripherals.PWM1),
-            PWM2: Some(teensy_peripherals.PWM2),
-            PWM3: Some(teensy_peripherals.PWM3),
-            PWM4: Some(teensy_peripherals.PWM4),
-            PXP: Some(teensy_peripherals.PXP),
-            ROMC: Some(teensy_peripherals.ROMC),
-            RTWDOG: Some(teensy_peripherals.RTWDOG),
-            SAI1: Some(teensy_peripherals.SAI1),
-            SAI2: Some(teensy_peripherals.SAI2),
-            SAI3: Some(teensy_peripherals.SAI3),
-            SEMC: Some(teensy_peripherals.SEMC),
-            SNVS: Some(teensy_peripherals.SNVS),
-            SPDIF: Some(teensy_peripherals.SPDIF),
-            SRC: Some(teensy_peripherals.SRC),
-            TEMPMON: Some(teensy_peripherals.TEMPMON),
-            TMR1: Some(teensy_peripherals.TMR1),
-            TMR2: Some(teensy_peripherals.TMR2),
-            TMR3: Some(teensy_peripherals.TMR3),
-            TMR4: Some(teensy_peripherals.TMR4),
-            TRNG: Some(teensy_peripherals.TRNG),
-            TSC: Some(teensy_peripherals.TSC),
-            USB1: Some(teensy_peripherals.USB1),
-            USB2: Some(teensy_peripherals.USB2),
-            USB_ANALOG: Some(teensy_peripherals.USB_ANALOG),
-            USBNC1: Some(teensy_peripherals.USBNC1),
-            USBNC2: Some(teensy_peripherals.USBNC2),
-            USBPHY1: Some(teensy_peripherals.USBPHY1),
-            USBPHY2: Some(teensy_peripherals.USBPHY2),
-            USDHC1: Some(teensy_peripherals.USDHC1),
-            USDHC2: Some(teensy_peripherals.USDHC2),
-            WDOG1: Some(teensy_peripherals.WDOG1),
-            WDOG2: Some(teensy_peripherals.WDOG2),
-            XBARA1: Some(teensy_peripherals.XBARA1),
-            XBARB2: Some(teensy_peripherals.XBARB2),
-            XBARB3: Some(teensy_peripherals.XBARB3),
-            XTALOSC24M: Some(teensy_peripherals.XTALOSC24M),
-            AC: Some(cortex_peripherals.AC),
-            CBP: Some(cortex_peripherals.CBP),
-            CPUID: Some(cortex_peripherals.CPUID),
-            DCB: Some(cortex_peripherals.DCB),
-            DWT: Some(cortex_peripherals.DWT),
-            FPB: Some(cortex_peripherals.FPB),
-            FPU: Some(cortex_peripherals.FPU),
-            ICB: Some(cortex_peripherals.ICB),
-            ITM: Some(cortex_peripherals.ITM),
-            MPU: Some(cortex_peripherals.MPU),
-            NVIC: Some(cortex_peripherals.NVIC),
-            SAU: Some(cortex_peripherals.SAU),
-            SCB: Some(cortex_peripherals.SCB),
-            SYST: Some(cortex_peripherals.SYST),
-            TPIU: Some(cortex_peripherals.TPIU),
-        }
-    }
+pub const fn adc_etc() -> adc_etc::ADC_ETC {
+    unsafe { adc_etc::ADC_ETC::instance() }
+}
+
+pub const fn aipstz1() -> aipstz::AIPSTZ1 {
+    unsafe { aipstz::AIPSTZ1::instance() }
+}
+
+pub const fn aipstz2() -> aipstz::AIPSTZ2 {
+    unsafe { aipstz::AIPSTZ2::instance() }
+}
+
+pub const fn aipstz3() -> aipstz::AIPSTZ3 {
+    unsafe { aipstz::AIPSTZ3::instance() }
+}
+
+pub const fn aipstz4() -> aipstz::AIPSTZ4 {
+    unsafe { aipstz::AIPSTZ4::instance() }
+}
+
+pub const fn aoi1() -> aoi::AOI1 {
+    unsafe { aoi::AOI1::instance() }
+}
+
+pub const fn aoi2() -> aoi::AOI2 {
+    unsafe { aoi::AOI2::instance() }
+}
+
+pub const fn bee() -> bee::BEE {
+    unsafe { bee::BEE::instance() }
+}
+
+pub const fn can1() -> can::CAN1 {
+    unsafe { can::CAN1::instance() }
+}
+
+pub const fn can2() -> can::CAN2 {
+    unsafe { can::CAN2::instance() }
+}
+
+pub const fn can3() -> can3::CAN3 {
+    unsafe { can3::CAN3::instance() }
+}
+
+pub const fn ccm() -> ccm::CCM {
+    unsafe { ccm::CCM::instance() }
+}
+
+pub const fn ccm_analog() -> ccm_analog::CCM_ANALOG {
+    unsafe { ccm_analog::CCM_ANALOG::instance() }
+}
+
+pub const fn cmp1() -> cmp::CMP1 {
+    unsafe { cmp::CMP1::instance() }
+}
+
+pub const fn cmp2() -> cmp::CMP2 {
+    unsafe { cmp::CMP2::instance() }
+}
+
+pub const fn cmp3() -> cmp::CMP3 {
+    unsafe { cmp::CMP3::instance() }
+}
+
+pub const fn cmp4() -> cmp::CMP4 {
+    unsafe { cmp::CMP4::instance() }
+}
+
+pub const fn csi() -> csi::CSI {
+    unsafe { csi::CSI::instance() }
+}
+
+pub const fn csu() -> csu::CSU {
+    unsafe { csu::CSU::instance() }
+}
+
+pub const fn dcdc() -> dcdc::DCDC {
+    unsafe { dcdc::DCDC::instance() }
+}
+
+pub const fn dcp() -> dcp::DCP {
+    unsafe { dcp::DCP::instance() }
+}
+
+pub const fn dma() -> dma::DMA {
+    unsafe { dma::DMA::instance() }
+}
+
+pub const fn dmamux() -> dmamux::DMAMUX {
+    unsafe { dmamux::DMAMUX::instance() }
+}
+
+pub const fn enc1() -> enc::ENC1 {
+    unsafe { enc::ENC1::instance() }
+}
+
+pub const fn enc2() -> enc::ENC2 {
+    unsafe { enc::ENC2::instance() }
+}
+
+pub const fn enc3() -> enc::ENC3 {
+    unsafe { enc::ENC3::instance() }
+}
+
+pub const fn enc4() -> enc::ENC4 {
+    unsafe { enc::ENC4::instance() }
+}
+
+pub const fn enet1() -> enet::ENET1 {
+    unsafe { enet::ENET1::instance() }
+}
+
+pub const fn enet2() -> enet::ENET2 {
+    unsafe { enet::ENET2::instance() }
+}
+
+pub const fn ewm() -> ewm::EWM {
+    unsafe { ewm::EWM::instance() }
+}
+
+pub const fn flexio1() -> flexio::FLEXIO1 {
+    unsafe { flexio::FLEXIO1::instance() }
+}
+
+pub const fn flexio2() -> flexio::FLEXIO2 {
+    unsafe { flexio::FLEXIO2::instance() }
+}
+
+pub const fn flexio3() -> flexio::FLEXIO3 {
+    unsafe { flexio::FLEXIO3::instance() }
+}
+
+pub const fn flexram() -> flexram::FLEXRAM {
+    unsafe { flexram::FLEXRAM::instance() }
+}
+
+pub const fn flexspi1() -> flexspi::FLEXSPI1 {
+    unsafe { flexspi::FLEXSPI1::instance() }
+}
+
+pub const fn flexspi2() -> flexspi::FLEXSPI2 {
+    unsafe { flexspi::FLEXSPI2::instance() }
+}
+
+pub const fn gpc() -> gpc::GPC {
+    unsafe { gpc::GPC::instance() }
+}
+
+pub const fn gpio1() -> gpio::GPIO1 {
+    unsafe { gpio::GPIO1::instance() }
+}
+
+pub const fn gpio5() -> gpio::GPIO5 {
+    unsafe { gpio::GPIO5::instance() }
+}
+
+pub const fn gpio2() -> gpio::GPIO2 {
+    unsafe { gpio::GPIO2::instance() }
+}
+
+pub const fn gpio3() -> gpio::GPIO3 {
+    unsafe { gpio::GPIO3::instance() }
+}
+
+pub const fn gpio4() -> gpio::GPIO4 {
+    unsafe { gpio::GPIO4::instance() }
+}
+
+pub const fn gpio6() -> gpio::GPIO6 {
+    unsafe { gpio::GPIO6::instance() }
+}
+
+pub const fn gpio7() -> gpio::GPIO7 {
+    unsafe { gpio::GPIO7::instance() }
+}
+
+pub const fn gpio8() -> gpio::GPIO8 {
+    unsafe { gpio::GPIO8::instance() }
+}
+
+pub const fn gpio9() -> gpio::GPIO9 {
+    unsafe { gpio::GPIO9::instance() }
+}
+
+pub const fn gpt1() -> gpt::GPT1 {
+    unsafe { gpt::GPT1::instance() }
+}
+
+pub const fn gpt2() -> gpt::GPT2 {
+    unsafe { gpt::GPT2::instance() }
+}
+
+pub const fn iomuxc() -> iomuxc::IOMUXC {
+    unsafe { iomuxc::IOMUXC::instance() }
+}
+
+pub const fn iomuxc_gpr() -> iomuxc_gpr::IOMUXC_GPR {
+    unsafe { iomuxc_gpr::IOMUXC_GPR::instance() }
+}
+
+pub const fn iomuxc_snvs() -> iomuxc_snvs::IOMUXC_SNVS {
+    unsafe { iomuxc_snvs::IOMUXC_SNVS::instance() }
+}
+
+pub const fn iomuxc_snvs_gpr() -> iomuxc_snvs_gpr::IOMUXC_SNVS_GPR {
+    unsafe { iomuxc_snvs_gpr::IOMUXC_SNVS_GPR::instance() }
+}
+
+pub const fn kpp() -> kpp::KPP {
+    unsafe { kpp::KPP::instance() }
+}
+
+pub const fn lcdif() -> lcdif::LCDIF {
+    unsafe { lcdif::LCDIF::instance() }
+}
+
+pub const fn lpi2c1() -> lpi2c::LPI2C1 {
+    unsafe { lpi2c::LPI2C1::instance() }
+}
+
+pub const fn lpi2c2() -> lpi2c::LPI2C2 {
+    unsafe { lpi2c::LPI2C2::instance() }
+}
+
+pub const fn lpi2c3() -> lpi2c::LPI2C3 {
+    unsafe { lpi2c::LPI2C3::instance() }
+}
+
+pub const fn lpi2c4() -> lpi2c::LPI2C4 {
+    unsafe { lpi2c::LPI2C4::instance() }
+}
+
+pub const fn lpspi1() -> lpspi::LPSPI1 {
+    unsafe { lpspi::LPSPI1::instance() }
+}
+
+pub const fn lpspi2() -> lpspi::LPSPI2 {
+    unsafe { lpspi::LPSPI2::instance() }
+}
+
+pub const fn lpspi3() -> lpspi::LPSPI3 {
+    unsafe { lpspi::LPSPI3::instance() }
+}
+
+pub const fn lpspi4() -> lpspi::LPSPI4 {
+    unsafe { lpspi::LPSPI4::instance() }
+}
+
+pub const fn lpuart1() -> lpuart::LPUART1 {
+    unsafe { lpuart::LPUART1::instance() }
+}
+
+pub const fn lpuart2() -> lpuart::LPUART2 {
+    unsafe { lpuart::LPUART2::instance() }
+}
+
+pub const fn lpuart3() -> lpuart::LPUART3 {
+    unsafe { lpuart::LPUART3::instance() }
+}
+
+pub const fn lpuart4() -> lpuart::LPUART4 {
+    unsafe { lpuart::LPUART4::instance() }
+}
+
+pub const fn lpuart5() -> lpuart::LPUART5 {
+    unsafe { lpuart::LPUART5::instance() }
+}
+
+pub const fn lpuart6() -> lpuart::LPUART6 {
+    unsafe { lpuart::LPUART6::instance() }
+}
+
+pub const fn lpuart7() -> lpuart::LPUART7 {
+    unsafe { lpuart::LPUART7::instance() }
+}
+
+pub const fn lpuart8() -> lpuart::LPUART8 {
+    unsafe { lpuart::LPUART8::instance() }
+}
+
+pub const fn ocotp() -> ocotp::OCOTP {
+    unsafe { ocotp::OCOTP::instance() }
+}
+
+pub const fn pgc() -> pgc::PGC {
+    unsafe { pgc::PGC::instance() }
+}
+
+pub const fn pit() -> pit::PIT {
+    unsafe { pit::PIT::instance() }
+}
+
+pub const fn pmu() -> pmu::PMU {
+    unsafe { pmu::PMU::instance() }
+}
+
+pub const fn pwm1() -> pwm::PWM1 {
+    unsafe { pwm::PWM1::instance() }
+}
+
+pub const fn pwm2() -> pwm::PWM2 {
+    unsafe { pwm::PWM2::instance() }
+}
+
+pub const fn pwm3() -> pwm::PWM3 {
+    unsafe { pwm::PWM3::instance() }
+}
+
+pub const fn pwm4() -> pwm::PWM4 {
+    unsafe { pwm::PWM4::instance() }
+}
+
+pub const fn pxp() -> pxp::PXP {
+    unsafe { pxp::PXP::instance() }
+}
+
+pub const fn romc() -> romc::ROMC {
+    unsafe { romc::ROMC::instance() }
+}
+
+pub const fn rtwdog() -> rtwdog::RTWDOG {
+    unsafe { rtwdog::RTWDOG::instance() }
+}
+
+pub const fn sai1() -> sai::SAI1 {
+    unsafe { sai::SAI1::instance() }
+}
+
+pub const fn sai2() -> sai::SAI2 {
+    unsafe { sai::SAI2::instance() }
+}
+
+pub const fn sai3() -> sai::SAI3 {
+    unsafe { sai::SAI3::instance() }
+}
+
+pub const fn semc() -> semc::SEMC {
+    unsafe { semc::SEMC::instance() }
+}
+
+pub const fn snvs() -> snvs::SNVS {
+    unsafe { snvs::SNVS::instance() }
+}
+
+pub const fn spdif() -> spdif::SPDIF {
+    unsafe { spdif::SPDIF::instance() }
+}
+
+pub const fn src() -> src::SRC {
+    unsafe { src::SRC::instance() }
+}
+
+pub const fn tempmon() -> tempmon::TEMPMON {
+    unsafe { tempmon::TEMPMON::instance() }
+}
+
+pub const fn tmr1() -> tmr::TMR1 {
+    unsafe { tmr::TMR1::instance() }
+}
+
+pub const fn tmr2() -> tmr::TMR2 {
+    unsafe { tmr::TMR2::instance() }
+}
+
+pub const fn tmr3() -> tmr::TMR3 {
+    unsafe { tmr::TMR3::instance() }
+}
+
+pub const fn tmr4() -> tmr::TMR4 {
+    unsafe { tmr::TMR4::instance() }
+}
+
+pub const fn trng() -> trng::TRNG {
+    unsafe { trng::TRNG::instance() }
+}
+
+pub const fn tsc() -> tsc::TSC {
+    unsafe { tsc::TSC::instance() }
+}
+
+pub const fn usb1() -> usb::USB1 {
+    unsafe { usb::USB1::instance() }
+}
+
+pub const fn usb2() -> usb::USB2 {
+    unsafe { usb::USB2::instance() }
+}
+
+pub const fn usb_analog() -> usb_analog::USB_ANALOG {
+    unsafe { usb_analog::USB_ANALOG::instance() }
+}
+
+pub const fn usbnc1() -> usbnc::USBNC1 {
+    unsafe { usbnc::USBNC1::instance() }
+}
+
+pub const fn usbnc2() -> usbnc::USBNC2 {
+    unsafe { usbnc::USBNC2::instance() }
+}
+
+pub const fn usbphy1() -> usbphy::USBPHY1 {
+    unsafe { usbphy::USBPHY1::instance() }
+}
+
+pub const fn usbphy2() -> usbphy::USBPHY2 {
+    unsafe { usbphy::USBPHY2::instance() }
+}
+
+pub const fn usdhc1() -> usdhc::USDHC1 {
+    unsafe { usdhc::USDHC1::instance() }
+}
+
+pub const fn usdhc2() -> usdhc::USDHC2 {
+    unsafe { usdhc::USDHC2::instance() }
+}
+
+pub const fn wdog1() -> wdog::WDOG1 {
+    unsafe { wdog::WDOG1::instance() }
+}
+
+pub const fn wdog2() -> wdog::WDOG2 {
+    unsafe { wdog::WDOG2::instance() }
+}
+
+pub const fn xbara1() -> xbara1::XBARA1 {
+    unsafe { xbara1::XBARA1::instance() }
+}
+
+pub const fn xbarb2() -> xbarb::XBARB2 {
+    unsafe { xbarb::XBARB2::instance() }
+}
+
+pub const fn xbarb3() -> xbarb::XBARB3 {
+    unsafe { xbarb::XBARB3::instance() }
+}
+
+pub const fn xtalosc24m() -> xtalosc24m::XTALOSC24M {
+    unsafe { xtalosc24m::XTALOSC24M::instance() }
+}
+
+// cortex-m core peripherals
+pub fn ac() -> AC {
+    unsafe { cortex_m::Peripherals::steal().AC }
+}
+pub fn cbp() -> CBP {
+    unsafe { cortex_m::Peripherals::steal().CBP }
+}
+pub fn cpuid() -> CPUID {
+    unsafe { cortex_m::Peripherals::steal().CPUID }
+}
+pub fn dcb() -> DCB {
+    unsafe { cortex_m::Peripherals::steal().DCB }
+}
+pub fn dwt() -> DWT {
+    unsafe { cortex_m::Peripherals::steal().DWT }
+}
+pub fn fpb() -> FPB {
+    unsafe { cortex_m::Peripherals::steal().FPB }
+}
+pub fn fpu() -> FPU {
+    unsafe { cortex_m::Peripherals::steal().FPU }
+}
+pub fn icb() -> ICB {
+    unsafe { cortex_m::Peripherals::steal().ICB }
+}
+pub fn itm() -> ITM {
+    unsafe { cortex_m::Peripherals::steal().ITM }
+}
+pub fn mpu() -> MPU {
+    unsafe { cortex_m::Peripherals::steal().MPU }
+}
+pub fn nvic() -> NVIC {
+    unsafe { cortex_m::Peripherals::steal().NVIC }
+}
+pub fn sau() -> SAU {
+    unsafe { cortex_m::Peripherals::steal().SAU }
+}
+pub fn scb() -> SCB {
+    unsafe { cortex_m::Peripherals::steal().SCB }
+}
+pub fn syst() -> SYST {
+    unsafe { cortex_m::Peripherals::steal().SYST }
+}
+pub fn tpiu() -> TPIU {
+    unsafe { cortex_m::Peripherals::steal().TPIU }
 }

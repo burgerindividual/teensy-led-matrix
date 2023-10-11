@@ -69,8 +69,8 @@ enum DriverState {
 impl DriverState {
     pub const fn pre_delay_cycles(&self) -> u32 {
         match self {
-            DriverState::ClockOn => ns_to_cycles::<110>(), // 22 at 4.5v, 110 at 2v
-            DriverState::ClockOffDataOut => ns_to_cycles::<125>(), // 25 at 4.5v, 125 at 2v
+            DriverState::ClockOn => ns_to_cycles::<22>(), // 22 at 4.5v, 110 at 2v
+            DriverState::ClockOffDataOut => ns_to_cycles::<25>(), // 25 at 4.5v, 125 at 2v
         }
     }
 }

@@ -23,6 +23,7 @@ mod unwrap;
 
 use alloc::boxed::Box;
 
+use cortex_m::interrupt;
 use embedded_alloc::Heap;
 use teensy4_bsp::board::prepare_clocks_and_power;
 use teensy4_bsp::hal::iomuxc::into_pads;
@@ -32,44 +33,43 @@ use teensy4_panic as _;
 
 use crate::driver::ScreenDriver;
 use crate::intrinsics::init_heap;
-use crate::peripherals::Peripherals;
 use crate::program::*;
-use crate::unwrap::unwrap;
 
 #[global_allocator]
 static mut HEAP: Heap = Heap::empty();
 
-pub const PROGRAM_CONSTRUCTORS: [fn(&mut Peripherals) -> Box<dyn Program>; 1] = [HueCycle::new];
+pub const PROGRAM_CONSTRUCTORS: [fn() -> Box<dyn Program>; 1] = [HueCycle::new];
 
 #[teensy4_bsp::rt::entry]
 unsafe fn main() -> ! {
+    // completely disable all interrupts, allows for unsafe peripheral access to be safe
+    interrupt::disable();
+
     init_heap(&mut HEAP);
 
-    let mut peripherals = Peripherals::instance();
-
     prepare_clocks_and_power(
-        unwrap(peripherals.CCM.as_mut()),
-        unwrap(peripherals.CCM_ANALOG.as_mut()),
-        unwrap(peripherals.DCDC.as_mut()),
+        &mut peripherals::ccm(),
+        &mut peripherals::ccm_analog(),
+        &mut peripherals::dcdc(),
     );
 
-    unwrap(peripherals.DCB.as_mut()).enable_trace();
-    unwrap(peripherals.DWT.as_mut()).enable_cycle_counter();
+    peripherals::dcb().enable_trace();
+    peripherals::dwt().enable_cycle_counter();
 
-    let iomuxc = into_pads(unwrap(peripherals.IOMUXC.take()));
+    let iomuxc = into_pads(peripherals::iomuxc());
     let pins = from_pads(iomuxc);
     let mut erased_pins = pins.erase();
 
     let mut driver = ScreenDriver::new(
-        unwrap(peripherals.GPIO6.take()),
-        unwrap(peripherals.GPIO9.take()),
-        unwrap(peripherals.SNVS.take()),
-        unwrap(peripherals.IOMUXC_GPR.as_mut()),
-        unwrap(peripherals.CCM.as_mut()),
+        peripherals::gpio6(),
+        peripherals::gpio9(),
+        peripherals::snvs(),
+        &mut peripherals::iomuxc_gpr(),
+        &mut peripherals::ccm(),
         &mut erased_pins,
     );
 
-    let mut current_program = PROGRAM_CONSTRUCTORS[0](&mut peripherals);
+    let mut current_program = PROGRAM_CONSTRUCTORS[0]();
     current_program.init(&mut driver);
 
     loop {

@@ -50,7 +50,7 @@ pub fn led_output_pin_setup<P: Iomuxc>(pin: &mut P) {
     configure(
         pin,
         Config::zero()
-            .set_speed(Speed::Low) // Low speed with a fast slew rate is still 50MHz, which is fast enough for our use case
+            .set_speed(Speed::Max)
             .set_drive_strength(DriveStrength::R0)
             .set_pull_keeper(None)
             .set_hysteresis(Hysteresis::Disabled)
@@ -67,7 +67,7 @@ pub fn clock_pin_setup<P: Iomuxc>(pin: &mut P) {
     configure(
         pin,
         Config::zero()
-            .set_speed(Speed::Low) // Low speed with a fast slew rate is still 50MHz, which is fast enough for our use case
+            .set_speed(Speed::Max)
             .set_drive_strength(DriveStrength::R0)
             .set_pull_keeper(None)
             .set_hysteresis(Hysteresis::Disabled)
@@ -84,7 +84,7 @@ pub fn button_pin_setup<P: Iomuxc>(pin: &mut P) {
     configure(
         pin,
         Config::zero()
-            .set_speed(Speed::Low) // Low speed with a fast slew rate is still 50MHz, which is fast enough for our use case
+            .set_speed(Speed::Low)
             .set_drive_strength(DriveStrength::R0)
             .set_pull_keeper(Some(PullKeeper::Keeper))
             .set_hysteresis(Hysteresis::Disabled)
