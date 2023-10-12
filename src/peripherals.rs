@@ -1,5 +1,3 @@
-use core::ptr;
-
 use cortex_m::peripheral::*;
 use teensy4_bsp::ral::*;
 
