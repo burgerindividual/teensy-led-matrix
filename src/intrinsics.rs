@@ -55,7 +55,7 @@ pub const fn ns_to_cycles<const NS: u32>() -> u32 {
     ((NS as u64) * (ARM_FREQUENCY as u64)).div_ceil(1_000_000_000_u64) as u32
 }
 
-pub fn init_heap(heap: &mut Heap) {
+pub fn init_heap(heap: &Heap) {
     // // the runtime already has a dedicated spot in OCRAM for us to use as the heap
     // let heap_start = heap_start() as usize;
     // let heap_size = heap_start - heap_end() as usize;

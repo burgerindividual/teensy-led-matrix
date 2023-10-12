@@ -5,15 +5,11 @@ use teensy4_bsp::hal::ccm::clock_gate;
 use teensy4_bsp::hal::iomuxc::gpio::Pin;
 use teensy4_bsp::pins::t40::{ErasedPins, P2, P3};
 use teensy4_bsp::ral;
-use teensy4_bsp::ral::ccm::CCM;
-use teensy4_bsp::ral::gpio::{GPIO6, GPIO9};
-use teensy4_bsp::ral::iomuxc_gpr::IOMUXC_GPR;
-use teensy4_bsp::ral::snvs::SNVS;
 use teensy4_bsp::ral::{modify_reg, read_reg, write_reg};
 
 use crate::framebuffer::{ColorLines, Framebuffer};
 use crate::intrinsics::{ns_to_cycles, pwm_pulse_batched, yield_cycles, BATCH_SIZE};
-use crate::pins::*;
+use crate::{peripherals, pins::*};
 
 #[repr(u32)]
 #[rustfmt::skip]
@@ -84,23 +80,12 @@ pub struct ScreenDriver {
     delay_start_cycles: u32,
     clock_pulse_bits: u32,
     last_rtc_val: u32,
-
-    gpio6: GPIO6,
-    gpio9: GPIO9,
-    snvs: SNVS,
 }
 
 impl ScreenDriver {
     pub const SHIFT_COUNT: u8 = (Framebuffer::HEIGHT * ColorLines::COUNT) as u8;
 
-    pub fn new(
-        gpio6: GPIO6,
-        gpio9: GPIO9,
-        snvs: SNVS,
-        iomuxc_gpr: &mut IOMUXC_GPR,
-        ccm: &mut CCM,
-        erased_pins: &mut ErasedPins,
-    ) -> Self {
+    pub fn new(erased_pins: &mut ErasedPins) -> Self {
         // configure LED output pins
         for idx in LED_OUTPUT_PIN_INDICES {
             led_output_pin_setup(&mut erased_pins[idx]);
@@ -109,6 +94,12 @@ impl ScreenDriver {
         // configure clock pins
         clock_pin_setup(&mut erased_pins[2]);
         clock_pin_setup(&mut erased_pins[3]);
+
+        let iomuxc_gpr = peripherals::iomuxc_gpr();
+        let gpio6 = peripherals::gpio6();
+        let gpio9 = peripherals::gpio9();
+        let ccm = &mut peripherals::ccm();
+        let snvs = peripherals::snvs();
 
         // activate high-speed GPIO with our used pins
         write_reg!(ral::gpio, iomuxc_gpr, GPR26, GPIO6_PIN_MASK);
@@ -135,9 +126,6 @@ impl ScreenDriver {
             delay_start_cycles: DWT::cycle_count(),
             clock_pulse_bits: 0,
             last_rtc_val: 0,
-            gpio6,
-            gpio9,
-            snvs,
         }
     }
 
@@ -193,12 +181,22 @@ impl ScreenDriver {
             0
         };
 
-        write_reg!(ral::gpio, self.gpio9, DR_SET, self.clock_pulse_bits);
+        write_reg!(
+            ral::gpio,
+            peripherals::gpio9(),
+            DR_SET,
+            self.clock_pulse_bits
+        );
     }
 
     #[inline(always)]
     fn drive_clock_off_data_out<const ALLOW_FRAME_FLIP: bool>(&mut self) -> bool {
-        write_reg!(ral::gpio, self.gpio9, DR_CLEAR, self.clock_pulse_bits);
+        write_reg!(
+            ral::gpio,
+            peripherals::gpio9(),
+            DR_CLEAR,
+            self.clock_pulse_bits
+        );
 
         // between the clock pulse and the serial output changing, 3 cycles of delay is expected.
         // in any scenario, this is already satisfied by the code setting up the next serial output,
@@ -213,7 +211,8 @@ impl ScreenDriver {
             if ALLOW_FRAME_FLIP {
                 // the mask chooses which bits are tested against, which can effectively set the
                 // framerate
-                let current_rtc_val = read_reg!(ral::snvs, self.snvs, HPRTCLR) & self.rtc_mask;
+                let current_rtc_val =
+                    read_reg!(ral::snvs, peripherals::snvs(), HPRTCLR) & self.rtc_mask;
 
                 // Frame advance is done here to effectively cause a vertical sync, as we
                 // will only be updating the FB after all scanlines are written.
@@ -253,7 +252,7 @@ impl ScreenDriver {
             );
         }
 
-        write_reg!(ral::gpio, self.gpio6, DR, gpio6_out_buffer);
+        write_reg!(ral::gpio, peripherals::gpio6(), DR, gpio6_out_buffer);
 
         frame_flipped
     }

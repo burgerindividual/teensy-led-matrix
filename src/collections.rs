@@ -62,10 +62,7 @@ impl<const LEN: usize, T> Default for InlineVec<LEN, T> {
 
 impl<const LEN: usize, T: Copy> Clone for InlineVec<LEN, T> {
     fn clone(&self) -> Self {
-        Self {
-            data: self.data.clone(),
-            count: self.count,
-        }
+        *self
     }
 }
 

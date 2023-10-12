@@ -45,7 +45,7 @@ unsafe fn main() -> ! {
     // completely disable all interrupts, allows for unsafe peripheral access to be safe
     interrupt::disable();
 
-    init_heap(&mut HEAP);
+    init_heap(&HEAP);
 
     prepare_clocks_and_power(
         &mut peripherals::ccm(),
@@ -60,14 +60,7 @@ unsafe fn main() -> ! {
     let pins = from_pads(iomuxc);
     let mut erased_pins = pins.erase();
 
-    let mut driver = ScreenDriver::new(
-        peripherals::gpio6(),
-        peripherals::gpio9(),
-        peripherals::snvs(),
-        &mut peripherals::iomuxc_gpr(),
-        &mut peripherals::ccm(),
-        &mut erased_pins,
-    );
+    let mut driver = ScreenDriver::new(&mut erased_pins);
 
     let mut current_program = PROGRAM_CONSTRUCTORS[0]();
     current_program.init(&mut driver);

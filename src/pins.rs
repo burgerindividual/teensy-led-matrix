@@ -63,7 +63,7 @@ pub fn clock_pin_setup<P: Iomuxc>(pin: &mut P) {
     // configure to be GPIO, which is done by setting ALT to 5
     alternate(pin, 5);
     // we don't want to read it, so disable input
-    clear_sion(pin);
+    // clear_sion(pin);
     configure(
         pin,
         Config::zero()
@@ -85,7 +85,7 @@ pub fn button_pin_setup<P: Iomuxc>(pin: &mut P) {
         pin,
         Config::zero()
             .set_speed(Speed::Low)
-            .set_drive_strength(DriveStrength::R0)
+            .set_drive_strength(DriveStrength::Disabled)
             .set_pull_keeper(Some(PullKeeper::Keeper))
             .set_hysteresis(Hysteresis::Disabled)
             .set_slew_rate(SlewRate::Slow)
