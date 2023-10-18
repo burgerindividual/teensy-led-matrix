@@ -17,13 +17,11 @@ impl Program for HueCycle {
     fn init(&mut self, driver: &mut ScreenDriver) {
         for y in 0..Framebuffer::HEIGHT {
             for x in 0..Framebuffer::WIDTH {
-                unsafe {
-                    driver.framebuffer.back_buffer.set_led_unchecked(
-                        x,
-                        y,
-                        Color::from_rgb(((x + y) * 10) as u8, 255, 0),
-                    );
-                }
+                driver.framebuffer.back_buffer.set_led(
+                    x,
+                    y,
+                    Color::from_rgb(((x + y) * 10) as u8, 255, 0),
+                );
             }
         }
         driver.set_target_frame_rate(FrameRate::Fps512);
@@ -35,7 +33,7 @@ impl Program for HueCycle {
     fn render(&mut self, driver: &mut ScreenDriver) {
         for y in 0..Framebuffer::HEIGHT {
             for x in 0..Framebuffer::WIDTH {
-                let mut color = unsafe { driver.framebuffer.front_buffer.get_led_unchecked(x, y) };
+                let mut color = unsafe { driver.framebuffer.front_buffer.get_led(x, y) };
 
                 color.g = color
                     .g
@@ -58,12 +56,7 @@ impl Program for HueCycle {
                     .r
                     .saturating_sub((color.g == 0xFF && color.b == 0x00) as u8);
 
-                unsafe {
-                    driver
-                        .framebuffer
-                        .back_buffer
-                        .set_led_unchecked(x, y, color);
-                }
+                driver.framebuffer.back_buffer.set_led(x, y, color);
 
                 driver.drive_mid_render();
             }

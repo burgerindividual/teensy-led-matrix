@@ -9,7 +9,8 @@ use teensy4_bsp::ral::{modify_reg, read_reg, write_reg};
 
 use crate::framebuffer::{ColorLines, Framebuffer};
 use crate::intrinsics::{ns_to_cycles, pwm_pulse_batched, yield_cycles, BATCH_SIZE};
-use crate::{peripherals, pins::*};
+use crate::peripherals;
+use crate::pins::*;
 
 #[repr(u32)]
 #[rustfmt::skip]
@@ -174,9 +175,9 @@ impl ScreenDriver {
 
     #[inline(always)]
     fn drive_clock_on(&mut self) {
-        self.clock_pulse_bits = 0b1 << P2::OFFSET;
+        self.clock_pulse_bits = 0b1 << P3::OFFSET;
         self.clock_pulse_bits |= if self.current_shift_bit == 0 {
-            0b1 << P3::OFFSET
+            0b1 << P2::OFFSET
         } else {
             0
         };

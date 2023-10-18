@@ -13,7 +13,6 @@ mod color;
 mod framebuffer;
 mod intrinsics;
 mod pins;
-mod take_mut;
 
 mod collections;
 mod driver;
@@ -37,8 +36,6 @@ use crate::program::*;
 
 #[global_allocator]
 static mut HEAP: Heap = Heap::empty();
-
-pub const PROGRAM_CONSTRUCTORS: [fn() -> Box<dyn Program>; 1] = [HueCycle::new];
 
 #[teensy4_bsp::rt::entry]
 unsafe fn main() -> ! {
