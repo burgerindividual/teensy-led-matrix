@@ -9,20 +9,16 @@
 
 extern crate alloc;
 
+mod collections;
 mod color;
+mod driver;
 mod framebuffer;
 mod intrinsics;
-mod pins;
-
-mod collections;
-mod driver;
 mod peripherals;
+mod pins;
 mod program;
-mod unwrap;
 
-use alloc::boxed::Box;
-
-use cortex_m::interrupt;
+use cortex_m::peripheral::syst::SystClkSource;
 use embedded_alloc::Heap;
 use teensy4_bsp::board::prepare_clocks_and_power;
 use teensy4_bsp::hal::iomuxc::into_pads;
@@ -39,9 +35,6 @@ static mut HEAP: Heap = Heap::empty();
 
 #[teensy4_bsp::rt::entry]
 unsafe fn main() -> ! {
-    // completely disable all interrupts, allows for unsafe peripheral access to be safe
-    interrupt::disable();
-
     init_heap(&HEAP);
 
     prepare_clocks_and_power(
@@ -52,6 +45,11 @@ unsafe fn main() -> ! {
 
     peripherals::dcb().enable_trace();
     peripherals::dwt().enable_cycle_counter();
+
+    let mut systick = peripherals::syst();
+    systick.set_clock_source(SystClkSource::Core);
+    systick.clear_current();
+    systick.enable_interrupt();
 
     let iomuxc = into_pads(peripherals::iomuxc());
     let pins = from_pads(iomuxc);

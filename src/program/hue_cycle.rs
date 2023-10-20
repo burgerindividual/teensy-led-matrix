@@ -5,11 +5,15 @@ use crate::driver::{FrameRate, ScreenDriver};
 use crate::framebuffer::Framebuffer;
 use crate::program::Program;
 
-pub struct HueCycle {}
+pub struct HueCycle {
+    scratch_buffer: [[Color; Framebuffer::WIDTH]; Framebuffer::HEIGHT],
+}
 
 impl HueCycle {
     pub fn new() -> Box<dyn Program> {
-        Box::new(Self {})
+        Box::new(Self {
+            scratch_buffer: Default::default(),
+        })
     }
 }
 
@@ -33,7 +37,13 @@ impl Program for HueCycle {
     fn render(&mut self, driver: &mut ScreenDriver) {
         for y in 0..Framebuffer::HEIGHT {
             for x in 0..Framebuffer::WIDTH {
-                let mut color = unsafe { driver.framebuffer.front_buffer.get_led(x, y) };
+                let color = unsafe {
+                    self.scratch_buffer
+                        .get_mut(y)
+                        .unwrap_unchecked()
+                        .get_mut(x)
+                        .unwrap_unchecked()
+                };
 
                 color.g = color
                     .g
@@ -56,7 +66,7 @@ impl Program for HueCycle {
                     .r
                     .saturating_sub((color.g == 0xFF && color.b == 0x00) as u8);
 
-                driver.framebuffer.back_buffer.set_led(x, y, color);
+                driver.framebuffer.back_buffer.set_led(x, y, *color);
 
                 driver.drive_mid_render();
             }

@@ -103,50 +103,54 @@ impl Rain {
             line_shift: 0,
         })
     }
-}
 
-impl Program for Rain {
-    fn init(&mut self, driver: &mut ScreenDriver) {
-        driver.set_target_frame_rate(FrameRate::Fps64);
-    }
-
-    #[inline(always)]
-    fn render(&mut self, driver: &mut ScreenDriver) {
-        driver.framebuffer.back_buffer = Self::BASE_FRAME;
-        driver.drive_mid_render();
-
-        // spawn drops
+    fn spawn_drops(&mut self, driver: &mut ScreenDriver) {
         for y in 0..Framebuffer::HEIGHT {
             if self.rng.next_u32() <= Self::RAINDROP_FREQUENCY {
-                self.raindrop_lines[self.line_shift].push(Raindrop::new(y as usize));
+                unsafe {
+                    self.raindrop_lines
+                        .get_mut(self.line_shift)
+                        .unwrap_unchecked()
+                        .push(Raindrop::new(y as usize));
+                }
             }
 
             driver.drive_mid_render();
         }
+    }
 
-        // splash maybe
+    fn random_splashes(&mut self, driver: &mut ScreenDriver) {
         let mut x = self.line_shift;
         for _ in Self::GROUND_LEVEL..Framebuffer::WIDTH {
             if self.rng.next_u32() > Self::SPLASH_FREQUENCY {}
             driver.drive_mid_render();
         }
+    }
 
-        // force splash
+    fn force_splashes(&mut self, driver: &mut ScreenDriver) {
         let last_line_idx = match self.line_shift.checked_sub(1) {
             Some(val) => val,
             None => Framebuffer::WIDTH - 1,
         };
 
-        for raindrop in self.raindrop_lines[last_line_idx].get_slice_mut() {
-            raindrop.state = RaindropState::Splashing {
-                splash_x: Framebuffer::WIDTH - 1,
-                frame: 0,
-            };
+        unsafe {
+            for raindrop in self
+                .raindrop_lines
+                .get_mut(last_line_idx)
+                .unwrap_unchecked()
+                .get_slice_mut()
+            {
+                raindrop.state = RaindropState::Splashing {
+                    splash_x: Framebuffer::WIDTH - 1,
+                    frame: 0,
+                };
+            }
         }
 
         driver.drive_mid_render();
+    }
 
-        // rasterize
+    fn rasterize_drops(&mut self, driver: &mut ScreenDriver) {
         let mut falling_x = self.line_shift;
 
         for line in &mut self.raindrop_lines {
@@ -203,12 +207,34 @@ impl Program for Rain {
                 falling_x = 0;
             }
         }
+    }
+}
+
+impl Program for Rain {
+    fn init(&mut self, driver: &mut ScreenDriver) {
+        driver.set_target_frame_rate(FrameRate::Fps64);
+    }
+
+    #[inline(always)]
+    fn render(&mut self, driver: &mut ScreenDriver) {
+        driver.framebuffer.back_buffer = Self::BASE_FRAME;
+        driver.drive_mid_render();
+
+        self.spawn_drops(driver);
+        self.random_splashes(driver);
+        self.force_splashes(driver);
+        self.rasterize_drops(driver);
 
         self.line_shift += 1;
         if self.line_shift >= Framebuffer::WIDTH {
             self.line_shift = 0;
         }
 
-        self.raindrop_lines[self.line_shift].clear();
+        unsafe {
+            self.raindrop_lines
+                .get_mut(self.line_shift)
+                .unwrap_unchecked()
+                .clear();
+        }
     }
 }

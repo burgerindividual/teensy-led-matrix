@@ -1,11 +1,13 @@
-use core::hint::spin_loop;
+use core::arch::asm;
 use core::mem::MaybeUninit;
 use core::ptr::addr_of_mut;
 
+use cortex_m::asm::wfe;
 use cortex_m::register::apsr;
 use embedded_alloc::Heap;
 use teensy4_bsp::board::ARM_FREQUENCY;
-use teensy4_bsp::rt::{heap_end, heap_start};
+
+use crate::peripherals;
 
 extern "unadjusted" {
     #[link_name = "llvm.arm.uadd8"]
@@ -36,21 +38,6 @@ pub fn pwm_pulse_batched(
     *out_buffer |= ((apsr >> 19) & 0b1) << bit_offsets[3];
 }
 
-/// good option for shorter, less precise timing requirements (this will also use less power)
-#[inline(always)]
-pub fn yield_cycles<const CYCLES: u32>() {
-    // 148 seems to be the maximum that LLVM wants to unroll this, so do batches of 148 first
-    for _ in 0..(CYCLES / 148) {
-        for _ in 0..148 {
-            spin_loop();
-        }
-    }
-    // do remaining
-    for _ in 0..(CYCLES % 148) {
-        spin_loop();
-    }
-}
-
 pub const fn ns_to_cycles<const NS: u32>() -> u32 {
     ((NS as u64) * (ARM_FREQUENCY as u64)).div_ceil(1_000_000_000_u64) as u32
 }
@@ -63,5 +50,90 @@ pub fn init_heap(heap: &Heap) {
         const HEAP_SIZE: usize = 16 * 1024;
         static mut HEAP_AREA: MaybeUninit<[u8; HEAP_SIZE]> = MaybeUninit::uninit();
         heap.init(addr_of_mut!(HEAP_AREA) as usize, HEAP_SIZE);
+    }
+}
+
+#[inline(always)]
+pub fn yield_cycles<const CYCLES: u32>() {
+    const SETUP_TIME: u32 = 4;
+    const SYSTICK_MAX_CYCLES: u32 = (0b1 << 24) - 1 + SETUP_TIME;
+
+    // create predefined blocks of yeilds to prevent reordering.
+    // when feasible, use a timer and halt the processor until the timer causes an event.
+    match CYCLES {
+        1 => unsafe {
+            asm!("yield");
+        },
+        2 => unsafe {
+            asm!("yield", "yield");
+        },
+        3 => unsafe {
+            asm!("yield", "yield", "yield");
+        },
+        4 => unsafe {
+            asm!("yield", "yield", "yield", "yield");
+        },
+        5 => unsafe {
+            asm!("yield", "yield", "yield", "yield", "yield");
+        },
+        6 => unsafe {
+            asm!("yield", "yield", "yield", "yield", "yield", "yield");
+        },
+        7 => unsafe {
+            asm!("yield", "yield", "yield", "yield", "yield", "yield", "yield");
+        },
+        8 => unsafe {
+            asm!("yield", "yield", "yield", "yield", "yield", "yield", "yield", "yield");
+        },
+        9 => unsafe {
+            asm!("yield", "yield", "yield", "yield", "yield", "yield", "yield", "yield", "yield");
+        },
+        10 => unsafe {
+            asm!(
+                "yield", "yield", "yield", "yield", "yield", "yield", "yield", "yield", "yield",
+                "yield"
+            );
+        },
+        11 => unsafe {
+            asm!(
+                "yield", "yield", "yield", "yield", "yield", "yield", "yield", "yield", "yield",
+                "yield", "yield"
+            );
+        },
+        12 => unsafe {
+            asm!(
+                "yield", "yield", "yield", "yield", "yield", "yield", "yield", "yield", "yield",
+                "yield", "yield", "yield"
+            );
+        },
+        13 => unsafe {
+            asm!(
+                "yield", "yield", "yield", "yield", "yield", "yield", "yield", "yield", "yield",
+                "yield", "yield", "yield", "yield"
+            );
+        },
+        14 => unsafe {
+            asm!(
+                "yield", "yield", "yield", "yield", "yield", "yield", "yield", "yield", "yield",
+                "yield", "yield", "yield", "yield", "yield"
+            );
+        },
+        15 => unsafe {
+            asm!(
+                "yield", "yield", "yield", "yield", "yield", "yield", "yield", "yield", "yield",
+                "yield", "yield", "yield", "yield", "yield", "yield"
+            );
+        },
+        16..SYSTICK_MAX_CYCLES => {
+            let mut systick = peripherals::syst();
+            systick.set_reload(CYCLES - SETUP_TIME); // minus one here?
+            systick.clear_current();
+            systick.enable_counter();
+
+            wfe();
+
+            systick.disable_counter();
+        }
+        _ => unreachable!(),
     }
 }

@@ -43,36 +43,6 @@ impl Framebuffer {
     }
 }
 
-impl FrontBuffer {
-    pub const RED_MAX: u8 = (255.0 * (430.0 / 470.0)) as u8;
-    pub const GREEN_MAX: u8 = u8::MAX;
-    pub const BLUE_MAX: u8 = u8::MAX;
-
-    #[inline(always)]
-    pub fn get_led(&self, led_x: usize, led_y: usize) -> Color {
-        debug_assert!(led_x < Framebuffer::WIDTH);
-        debug_assert!(led_y < Framebuffer::HEIGHT);
-
-        unsafe {
-            let led_start_column = led_y * ColorLines::COUNT;
-            let r = *(self
-                .bit_target_lines
-                .get_unchecked(led_start_column + (ColorLines::Red as usize))
-                .get_unchecked(led_x));
-            let g = *(self
-                .bit_target_lines
-                .get_unchecked(led_start_column + (ColorLines::Green as usize))
-                .get_unchecked(led_x));
-            let b = *(self
-                .bit_target_lines
-                .get_unchecked(led_start_column + (ColorLines::Blue as usize))
-                .get_unchecked(led_x));
-
-            Color::from_rgb(r, g, b)
-        }
-    }
-}
-
 impl BackBuffer {
     #[inline(always)]
     pub fn set_led(&mut self, led_x: usize, led_y: usize, color: Color) {
@@ -88,32 +58,18 @@ impl BackBuffer {
             *(self
                 .bit_lines
                 .get_unchecked_mut(led_start_column + (ColorLines::Green as usize))
-                .get_unchecked_mut(led_x)) = color.g;
+                .get_unchecked_mut(led_x)) = ((color.g as u16 * 29) / 50) as u8;
             *(self
                 .bit_lines
                 .get_unchecked_mut(led_start_column + (ColorLines::Blue as usize))
-                .get_unchecked_mut(led_x)) = color.b;
+                .get_unchecked_mut(led_x)) = ((color.b as u16 * 29) / 70) as u8;
         }
     }
 
     #[inline(always)]
     pub fn try_set_led(&mut self, led_x: usize, led_y: usize, color: Color) {
         if led_x < Framebuffer::WIDTH && led_y < Framebuffer::HEIGHT {
-            unsafe {
-                let led_start_column = led_y * ColorLines::COUNT;
-                *(self
-                    .bit_lines
-                    .get_unchecked_mut(led_start_column + (ColorLines::Red as usize))
-                    .get_unchecked_mut(led_x)) = color.r;
-                *(self
-                    .bit_lines
-                    .get_unchecked_mut(led_start_column + (ColorLines::Green as usize))
-                    .get_unchecked_mut(led_x)) = color.g;
-                *(self
-                    .bit_lines
-                    .get_unchecked_mut(led_start_column + (ColorLines::Blue as usize))
-                    .get_unchecked_mut(led_x)) = color.b;
-            }
+            self.set_led(led_x, led_y, color);
         }
     }
 }

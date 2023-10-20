@@ -66,8 +66,8 @@ enum DriverState {
 impl DriverState {
     pub const fn pre_delay_cycles(&self) -> u32 {
         match self {
-            DriverState::ClockOn => ns_to_cycles::<22>(), // 22 at 4.5v, 110 at 2v
-            DriverState::ClockOffDataOut => ns_to_cycles::<25>(), // 25 at 4.5v, 125 at 2v
+            DriverState::ClockOn => ns_to_cycles::<22>(),
+            DriverState::ClockOffDataOut => ns_to_cycles::<25>(),
         }
     }
 }
@@ -76,7 +76,7 @@ pub struct ScreenDriver {
     rtc_mask: u32,
 
     pub framebuffer: Framebuffer,
-    pub current_shift_bit: u8,
+    pub current_shift_bit: u32,
     state: DriverState,
     delay_start_cycles: u32,
     clock_pulse_bits: u32,
@@ -84,17 +84,19 @@ pub struct ScreenDriver {
 }
 
 impl ScreenDriver {
-    pub const SHIFT_COUNT: u8 = (Framebuffer::HEIGHT * ColorLines::COUNT) as u8;
+    pub const SHIFT_COUNT: u32 = (Framebuffer::HEIGHT * ColorLines::COUNT) as u32;
 
     pub fn new(erased_pins: &mut ErasedPins) -> Self {
-        // configure LED output pins
-        for idx in LED_OUTPUT_PIN_INDICES {
-            led_output_pin_setup(&mut erased_pins[idx]);
-        }
+        unsafe {
+            // configure LED output pins
+            for idx in LED_OUTPUT_PIN_INDICES {
+                led_output_pin_setup(erased_pins.get_mut(idx).unwrap_unchecked());
+            }
 
-        // configure clock pins
-        clock_pin_setup(&mut erased_pins[2]);
-        clock_pin_setup(&mut erased_pins[3]);
+            // configure clock pins
+            clock_pin_setup(erased_pins.get_mut(2).unwrap_unchecked());
+            clock_pin_setup(erased_pins.get_mut(3).unwrap_unchecked());
+        }
 
         let iomuxc_gpr = peripherals::iomuxc_gpr();
         let gpio6 = peripherals::gpio6();

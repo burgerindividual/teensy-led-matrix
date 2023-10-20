@@ -8,7 +8,9 @@ pub struct InlineVec<const LEN: usize, T> {
 impl<const LEN: usize, T> InlineVec<LEN, T> {
     #[inline(always)]
     pub fn push(&mut self, value: T) {
-        self.data[self.count] = MaybeUninit::new(value);
+        unsafe {
+            *self.data.get_mut(self.count).unwrap_unchecked() = MaybeUninit::new(value);
+        }
         self.count += 1;
     }
 
@@ -16,7 +18,7 @@ impl<const LEN: usize, T> InlineVec<LEN, T> {
     pub fn clear(&mut self) {
         unsafe {
             for i in 0..self.count {
-                self.data[i].assume_init_drop();
+                self.data.get_mut(i).unwrap_unchecked().assume_init_drop();
             }
         }
 
@@ -31,9 +33,14 @@ impl<const LEN: usize, T> InlineVec<LEN, T> {
     /// # Safety
     /// The vec must not be empty before calling this function.
     #[inline(always)]
-    pub unsafe fn pop(&mut self) -> T {
+    pub fn pop(&mut self) -> T {
         self.count -= 1;
-        self.data.get_unchecked(self.count).assume_init_read()
+        unsafe {
+            self.data
+                .get(self.count)
+                .unwrap_unchecked()
+                .assume_init_read()
+        }
     }
 
     #[inline(always)]

@@ -3,7 +3,8 @@ use teensy4_bsp::ral::*;
 
 // This module provides safe access to teensy board peripherals and cortex-m core
 // peripherals without codegen bloat, provided the following is upheld:
-// - CPU interrupts are always disabled, and there are no other cores on the machine.
+// - CPU interrupts cannot change the execution flow, and there are no other cores
+//  on the machine.
 
 // teensy board peripherals
 pub const fn adc1() -> adc::ADC1 {
