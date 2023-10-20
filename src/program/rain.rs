@@ -82,15 +82,17 @@ impl Rain {
         );
 
         // use the TRNG to seed the PRNG
-        prng_seed.copy_from_slice(
-            [
-                trng.next_u32().unwrap().to_ne_bytes(),
-                trng.next_u32().unwrap().to_ne_bytes(),
-                trng.next_u32().unwrap().to_ne_bytes(),
-                trng.next_u32().unwrap().to_ne_bytes(),
-            ]
-            .flatten(),
-        );
+        unsafe {
+            prng_seed.copy_from_slice(
+                [
+                    trng.next_u32().unwrap_unchecked().to_ne_bytes(),
+                    trng.next_u32().unwrap_unchecked().to_ne_bytes(),
+                    trng.next_u32().unwrap_unchecked().to_ne_bytes(),
+                    trng.next_u32().unwrap_unchecked().to_ne_bytes(),
+                ]
+                .flatten(),
+            );
+        }
 
         // disable TRNG
         trng.release_disabled();

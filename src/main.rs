@@ -57,7 +57,7 @@ unsafe fn main() -> ! {
 
     let mut driver = ScreenDriver::new(&mut erased_pins);
 
-    let mut current_program = PROGRAM_CONSTRUCTORS[0]();
+    let mut current_program = PROGRAM_CONSTRUCTORS[1]();
     current_program.init(&mut driver);
 
     loop {
