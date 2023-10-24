@@ -1,3 +1,5 @@
+use core::mem::transmute;
+
 use cortex_m::peripheral::*;
 use teensy4_bsp::ral::*;
 
@@ -456,48 +458,48 @@ pub const fn xtalosc24m() -> xtalosc24m::XTALOSC24M {
 }
 
 // cortex-m core peripherals
-pub fn ac() -> AC {
-    unsafe { cortex_m::Peripherals::steal().AC }
+pub const fn ac() -> AC {
+    unsafe { transmute::<_, cortex_m::Peripherals>(()).AC }
 }
-pub fn cbp() -> CBP {
-    unsafe { cortex_m::Peripherals::steal().CBP }
+pub const fn cbp() -> CBP {
+    unsafe { transmute::<_, cortex_m::Peripherals>(()).CBP }
 }
-pub fn cpuid() -> CPUID {
-    unsafe { cortex_m::Peripherals::steal().CPUID }
+pub const fn cpuid() -> CPUID {
+    unsafe { transmute::<_, cortex_m::Peripherals>(()).CPUID }
 }
-pub fn dcb() -> DCB {
-    unsafe { cortex_m::Peripherals::steal().DCB }
+pub const fn dcb() -> DCB {
+    unsafe { transmute::<_, cortex_m::Peripherals>(()).DCB }
 }
-pub fn dwt() -> DWT {
-    unsafe { cortex_m::Peripherals::steal().DWT }
+pub const fn dwt() -> DWT {
+    unsafe { transmute::<_, cortex_m::Peripherals>(()).DWT }
 }
-pub fn fpb() -> FPB {
-    unsafe { cortex_m::Peripherals::steal().FPB }
+pub const fn fpb() -> FPB {
+    unsafe { transmute::<_, cortex_m::Peripherals>(()).FPB }
 }
-pub fn fpu() -> FPU {
-    unsafe { cortex_m::Peripherals::steal().FPU }
+pub const fn fpu() -> FPU {
+    unsafe { transmute::<_, cortex_m::Peripherals>(()).FPU }
 }
-pub fn icb() -> ICB {
-    unsafe { cortex_m::Peripherals::steal().ICB }
+pub const fn icb() -> ICB {
+    unsafe { transmute::<_, cortex_m::Peripherals>(()).ICB }
 }
-pub fn itm() -> ITM {
-    unsafe { cortex_m::Peripherals::steal().ITM }
+pub const fn itm() -> ITM {
+    unsafe { transmute::<_, cortex_m::Peripherals>(()).ITM }
 }
-pub fn mpu() -> MPU {
-    unsafe { cortex_m::Peripherals::steal().MPU }
+pub const fn mpu() -> MPU {
+    unsafe { transmute::<_, cortex_m::Peripherals>(()).MPU }
 }
-pub fn nvic() -> NVIC {
-    unsafe { cortex_m::Peripherals::steal().NVIC }
+pub const fn nvic() -> NVIC {
+    unsafe { transmute::<_, cortex_m::Peripherals>(()).NVIC }
 }
-pub fn sau() -> SAU {
-    unsafe { cortex_m::Peripherals::steal().SAU }
+pub const fn sau() -> SAU {
+    unsafe { transmute::<_, cortex_m::Peripherals>(()).SAU }
 }
-pub fn scb() -> SCB {
-    unsafe { cortex_m::Peripherals::steal().SCB }
+pub const fn scb() -> SCB {
+    unsafe { transmute::<_, cortex_m::Peripherals>(()).SCB }
 }
-pub fn syst() -> SYST {
-    unsafe { cortex_m::Peripherals::steal().SYST }
+pub const fn syst() -> SYST {
+    unsafe { transmute::<_, cortex_m::Peripherals>(()).SYST }
 }
-pub fn tpiu() -> TPIU {
-    unsafe { cortex_m::Peripherals::steal().TPIU }
+pub const fn tpiu() -> TPIU {
+    unsafe { transmute::<_, cortex_m::Peripherals>(()).TPIU }
 }

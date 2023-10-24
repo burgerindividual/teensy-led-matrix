@@ -66,8 +66,8 @@ enum DriverState {
 impl DriverState {
     pub const fn pre_delay_cycles(&self) -> u32 {
         match self {
-            DriverState::ClockOn => ns_to_cycles::<22>(),
-            DriverState::ClockOffDataOut => ns_to_cycles::<25>(),
+            DriverState::ClockOn => ns_to_cycles::<22>() as u32,
+            DriverState::ClockOffDataOut => ns_to_cycles::<25>() as u32,
         }
     }
 }
@@ -105,8 +105,8 @@ impl ScreenDriver {
         let snvs = peripherals::snvs();
 
         // activate high-speed GPIO with our used pins
-        write_reg!(ral::gpio, iomuxc_gpr, GPR26, GPIO6_PIN_MASK);
-        write_reg!(ral::gpio, iomuxc_gpr, GPR29, GPIO9_PIN_MASK);
+        write_reg!(ral::iomuxc_gpr, iomuxc_gpr, GPR26, GPIO6_PIN_MASK);
+        write_reg!(ral::iomuxc_gpr, iomuxc_gpr, GPR29, GPIO9_PIN_MASK);
 
         // set directions for GPIO pins
         modify_reg!(ral::gpio, gpio6, GDIR, |gdir| gdir | GPIO6_PIN_MASK);
@@ -162,12 +162,12 @@ impl ScreenDriver {
         while !frame_flipped {
             match self.state {
                 DriverState::ClockOn => {
-                    yield_cycles::<{ DriverState::ClockOn.pre_delay_cycles() }>();
+                    yield_cycles::<{ DriverState::ClockOn.pre_delay_cycles() as u64 }>();
                     self.drive_clock_on();
                     self.state = DriverState::ClockOffDataOut;
                 }
                 DriverState::ClockOffDataOut => {
-                    yield_cycles::<{ DriverState::ClockOffDataOut.pre_delay_cycles() }>();
+                    yield_cycles::<{ DriverState::ClockOffDataOut.pre_delay_cycles() as u64 }>();
                     frame_flipped = self.drive_clock_off_data_out::<true>();
                     self.state = DriverState::ClockOn;
                 }

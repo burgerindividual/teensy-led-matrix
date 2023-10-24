@@ -369,6 +369,7 @@ name = "teensy-led-matrix"
 version = "0.1.0"
 dependencies = [
  "cortex-m",
+ "cortex-m-rt",
  "embedded-alloc",
  "rand",
  "teensy4-bsp",

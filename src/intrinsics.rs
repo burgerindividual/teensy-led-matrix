@@ -1,6 +1,7 @@
 use core::arch::asm;
 use core::mem::MaybeUninit;
 use core::ptr::addr_of_mut;
+use core::sync::atomic::compiler_fence;
 
 use cortex_m::asm::wfe;
 use cortex_m::register::apsr;
@@ -38,8 +39,8 @@ pub fn pwm_pulse_batched(
     *out_buffer |= ((apsr >> 19) & 0b1) << bit_offsets[3];
 }
 
-pub const fn ns_to_cycles<const NS: u32>() -> u32 {
-    ((NS as u64) * (ARM_FREQUENCY as u64)).div_ceil(1_000_000_000_u64) as u32
+pub const fn ns_to_cycles<const NS: u64>() -> u64 {
+    (NS * (ARM_FREQUENCY as u64)).div_ceil(1_000_000_000_u64)
 }
 
 pub fn init_heap(heap: &Heap) {
@@ -54,9 +55,11 @@ pub fn init_heap(heap: &Heap) {
 }
 
 #[inline(always)]
-pub fn yield_cycles<const CYCLES: u32>() {
-    const SETUP_TIME: u32 = 4;
-    const SYSTICK_MAX_CYCLES: u32 = (0b1 << 24) - 1 + SETUP_TIME;
+pub fn yield_cycles<const CYCLES: u64>() {
+    const START_LOOP: u64 = 0xFFFFFF + SETUP_TIME_SINGLE + 2;
+    // estimated using LLVM MCA
+    const SETUP_TIME_SINGLE: u64 = 20;
+    const SETUP_TIME_LOOP: u64 = 38;
 
     // create predefined blocks of yeilds to prevent reordering.
     // when feasible, use a timer and halt the processor until the timer causes an event.
@@ -124,16 +127,74 @@ pub fn yield_cycles<const CYCLES: u32>() {
                 "yield", "yield", "yield", "yield", "yield", "yield"
             );
         },
-        16..SYSTICK_MAX_CYCLES => {
-            let mut systick = peripherals::syst();
-            systick.set_reload(CYCLES - SETUP_TIME); // minus one here?
-            systick.clear_current();
-            systick.enable_counter();
-
-            wfe();
-
-            systick.disable_counter();
+        16 => unsafe {
+            asm!(
+                "yield", "yield", "yield", "yield", "yield", "yield", "yield", "yield", "yield",
+                "yield", "yield", "yield", "yield", "yield", "yield", "yield"
+            );
+        },
+        17 => unsafe {
+            asm!(
+                "yield", "yield", "yield", "yield", "yield", "yield", "yield", "yield", "yield",
+                "yield", "yield", "yield", "yield", "yield", "yield", "yield", "yield"
+            );
+        },
+        18 => unsafe {
+            asm!(
+                "yield", "yield", "yield", "yield", "yield", "yield", "yield", "yield", "yield",
+                "yield", "yield", "yield", "yield", "yield", "yield", "yield", "yield", "yield"
+            );
+        },
+        19 => unsafe {
+            asm!(
+                "yield", "yield", "yield", "yield", "yield", "yield", "yield", "yield", "yield",
+                "yield", "yield", "yield", "yield", "yield", "yield", "yield", "yield", "yield",
+                "yield"
+            );
+        },
+        20 => unsafe {
+            asm!(
+                "yield", "yield", "yield", "yield", "yield", "yield", "yield", "yield", "yield",
+                "yield", "yield", "yield", "yield", "yield", "yield", "yield", "yield", "yield",
+                "yield", "yield"
+            );
+        },
+        21..START_LOOP => {
+            let wait_cycles = (CYCLES - SETUP_TIME_SINGLE - 1) as u32;
+            systick_yield(wait_cycles);
         }
-        _ => unreachable!(),
+        _ => {
+            let wait_cycles = CYCLES - SETUP_TIME_LOOP - 1;
+            let loop_count = wait_cycles >> 24;
+            let remainder = wait_cycles as u32 & 0xFFFFFF;
+
+            for _ in 0..loop_count {
+                systick_yield(0xFFFFFF);
+            }
+
+            if remainder > 0 {
+                systick_yield(remainder);
+            }
+        }
+    }
+}
+
+#[inline(always)]
+fn systick_yield(cycles: u32) {
+    let mut systick = peripherals::syst();
+    systick.set_reload(cycles); // minus one here?
+    systick.clear_current();
+    systick.enable_counter();
+    // these must not be reordered
+    unsafe {
+        asm!("sev", "wfe", "wfe");
+    }
+    systick.disable_counter();
+    unsafe {
+        let scb = peripherals::scb();
+        // clear the pending systick interrupt
+        scb.icsr.modify(|icsr| icsr | (0b1 << 25));
+        // clear the pending systick exception
+        // scb.shcsr.modify(|shcsr| shcsr & !(0b1 << 11));
     }
 }

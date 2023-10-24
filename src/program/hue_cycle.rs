@@ -21,11 +21,14 @@ impl Program for HueCycle {
     fn init(&mut self, driver: &mut ScreenDriver) {
         for y in 0..Framebuffer::HEIGHT {
             for x in 0..Framebuffer::WIDTH {
-                driver.framebuffer.back_buffer.set_led(
-                    x,
-                    y,
-                    Color::from_rgb(((x + y) * 10) as u8, 255, 0),
-                );
+                *unsafe {
+                    self.scratch_buffer
+                        .get_mut(y)
+                        .unwrap_unchecked()
+                        .get_mut(x)
+                        .unwrap_unchecked()
+                } = Color::from_rgb(((x + y) * 10) as u8, 255, 0);
+                
             }
         }
         driver.set_target_frame_rate(FrameRate::Fps512);
