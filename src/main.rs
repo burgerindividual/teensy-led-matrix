@@ -9,34 +9,37 @@
 
 extern crate alloc;
 
+mod button;
 mod collections;
 mod color;
-mod driver;
 mod framebuffer;
 mod intrinsics;
+mod led_driver;
 mod peripherals;
 mod pins;
 mod program;
 
 use core::arch::asm;
 
-use cortex_m::delay::Delay;
-use cortex_m::interrupt;
-use cortex_m::peripheral::scb::Exception;
 use cortex_m::peripheral::syst::SystClkSource;
-use cortex_m::peripheral::SCB;
-use cortex_m::register::{basepri, faultmask};
+use cortex_m::peripheral::DWT;
+use cortex_m::register::basepri;
 use embedded_alloc::Heap;
 use teensy4_bsp::board::{prepare_clocks_and_power, ARM_FREQUENCY};
 use teensy4_bsp::hal::iomuxc::into_pads;
+use teensy4_bsp::pins::imxrt_iomuxc::gpio::Pin;
+use teensy4_bsp::pins::imxrt_iomuxc::{
+    alternate, clear_sion, configure, Config, DriveStrength, Hysteresis, OpenDrain, SlewRate, Speed,
+};
 use teensy4_bsp::pins::t40::*;
-use teensy4_bsp::ral::{self, modify_reg, write_reg};
-use teensy4_bsp::rt::exception;
+use teensy4_bsp::ral::{self, modify_reg, read_reg, write_reg};
 #[allow(unused_imports)]
 use teensy4_panic as _;
 
-use crate::driver::ScreenDriver;
+use crate::button::Button;
 use crate::intrinsics::{init_heap, yield_cycles};
+use crate::led_driver::ScreenDriver;
+use crate::pins::button_pin_setup;
 use crate::program::*;
 
 #[global_allocator]
@@ -68,6 +71,7 @@ fn main() -> ! {
         let mut scb = peripherals::scb();
         scb.enable_icache();
         scb.enable_dcache(&mut peripherals::cpuid());
+
         // enable SEVONPEND (for systick), disable DEEPSLEEP
         scb.scr.write(0b10000);
     }
@@ -78,16 +82,26 @@ fn main() -> ! {
     systick.enable_interrupt();
 
     let iomuxc = into_pads(peripherals::iomuxc());
-    let pins = from_pads(iomuxc);
+    let mut pins = from_pads(iomuxc);
     let mut erased_pins = pins.erase();
 
-    let mut driver = ScreenDriver::new(&mut erased_pins);
+    let mut button = Button::new(&mut erased_pins[5]);
+    let mut led_driver = ScreenDriver::new(&mut erased_pins);
 
-    let mut current_program = PROGRAM_CONSTRUCTORS[0]();
-    current_program.init(&mut driver);
+    let mut program_index = 0;
+    let mut current_program = PROGRAM_CONSTRUCTORS[program_index](&mut led_driver);
 
     loop {
-        current_program.render(&mut driver);
-        driver.drive_post_render();
+        current_program.render(&mut led_driver);
+        led_driver.drive_post_render();
+
+        button.check_if_pressed(|| {
+            program_index += 1;
+            if program_index >= PROGRAM_CONSTRUCTORS.len() {
+                program_index = 0;
+            }
+
+            current_program = PROGRAM_CONSTRUCTORS[program_index](&mut led_driver);
+        });
     }
 }

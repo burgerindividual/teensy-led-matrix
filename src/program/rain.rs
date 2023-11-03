@@ -6,8 +6,8 @@ use teensy4_bsp::hal::trng::{RetryCount, SampleMode, Trng};
 
 use crate::collections::InlineVec;
 use crate::color::Color;
-use crate::driver::{FrameRate, ScreenDriver};
 use crate::framebuffer::{BackBuffer, ColorLines, Framebuffer};
+use crate::led_driver::{FrameRate, ScreenDriver};
 use crate::peripherals;
 use crate::program::Program;
 
@@ -72,7 +72,7 @@ impl Rain {
         buffer
     };
 
-    pub fn new() -> Box<dyn Program> {
+    pub fn new(driver: &mut ScreenDriver) -> Box<dyn Program> {
         let mut prng_seed = [0_u8; 16];
 
         let mut trng = Trng::new(
@@ -99,6 +99,8 @@ impl Rain {
 
         let prng = SmallRng::from_seed(prng_seed);
 
+        driver.set_target_frame_rate(FrameRate::Fps64);
+
         Box::new(Self {
             rng: prng,
             raindrop_lines: Default::default(),
@@ -124,7 +126,30 @@ impl Rain {
     fn random_splashes(&mut self, driver: &mut ScreenDriver) {
         let mut x = self.line_shift;
         for _ in Self::GROUND_LEVEL..Framebuffer::WIDTH {
-            if self.rng.next_u32() > Self::SPLASH_FREQUENCY {}
+            for raindrop in unsafe {
+                self.raindrop_lines
+                    .get_mut(x)
+                    .unwrap_unchecked()
+                    .get_slice_mut()
+            } {
+                match raindrop.state {
+                    RaindropState::Falling => {
+                        if self.rng.next_u32() > Self::SPLASH_FREQUENCY {
+                            raindrop.state = RaindropState::Splashing {
+                                splash_x: x,
+                                frame: 0,
+                            };
+                        }
+                    }
+                    _ => {}
+                }
+            }
+
+            x += 1;
+            if x >= Framebuffer::WIDTH {
+                x = 0;
+            }
+
             driver.drive_mid_render();
         }
     }
@@ -213,10 +238,6 @@ impl Rain {
 }
 
 impl Program for Rain {
-    fn init(&mut self, driver: &mut ScreenDriver) {
-        driver.set_target_frame_rate(FrameRate::Fps64);
-    }
-
     #[inline(always)]
     fn render(&mut self, driver: &mut ScreenDriver) {
         driver.framebuffer.back_buffer = Self::BASE_FRAME;

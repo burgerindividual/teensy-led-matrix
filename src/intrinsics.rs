@@ -1,9 +1,7 @@
 use core::arch::asm;
 use core::mem::MaybeUninit;
 use core::ptr::addr_of_mut;
-use core::sync::atomic::compiler_fence;
 
-use cortex_m::asm::wfe;
 use cortex_m::register::apsr;
 use embedded_alloc::Heap;
 use teensy4_bsp::board::ARM_FREQUENCY;
@@ -21,7 +19,7 @@ pub const BATCH_SIZE: usize = 4;
 pub fn pwm_pulse_batched(
     current_values: &mut [u8; BATCH_SIZE],
     target_values: &[u8; BATCH_SIZE],
-    bit_offsets: &[usize; BATCH_SIZE],
+    bit_offsets: &[u32; BATCH_SIZE],
     out_buffer: &mut u32,
 ) {
     *current_values = unsafe {

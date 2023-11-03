@@ -26,6 +26,8 @@ rclk = pin 3
 1 blue
 
 
+AOI stuff for event register?
+
 
 PIN   GPIOn-BITm  |  GPIOn-BITm    PIN
 ------------------|-------------------

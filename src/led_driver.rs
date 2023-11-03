@@ -89,33 +89,26 @@ impl ScreenDriver {
     pub fn new(erased_pins: &mut ErasedPins) -> Self {
         unsafe {
             // configure LED output pins
-            for idx in LED_OUTPUT_PIN_INDICES {
-                led_output_pin_setup(erased_pins.get_mut(idx).unwrap_unchecked());
+            for (&idx, &bit_offset) in LED_OUTPUT_PIN_INDICES
+                .iter()
+                .zip(GPIO6_BATCHED_PIN_OFFSETS.flatten().iter())
+            {
+                led_output_pin_setup(
+                    erased_pins.get_mut(idx as usize).unwrap_unchecked(),
+                    bit_offset,
+                );
             }
 
             // configure clock pins
-            clock_pin_setup(erased_pins.get_mut(2).unwrap_unchecked());
-            clock_pin_setup(erased_pins.get_mut(3).unwrap_unchecked());
+            clock_pin_setup(erased_pins.get_mut(2).unwrap_unchecked(), P2::OFFSET);
+            clock_pin_setup(erased_pins.get_mut(3).unwrap_unchecked(), P3::OFFSET);
         }
 
-        let iomuxc_gpr = peripherals::iomuxc_gpr();
-        let gpio6 = peripherals::gpio6();
-        let gpio9 = peripherals::gpio9();
-        let ccm = &mut peripherals::ccm();
-        let snvs = peripherals::snvs();
-
-        // activate high-speed GPIO with our used pins
-        write_reg!(ral::iomuxc_gpr, iomuxc_gpr, GPR26, GPIO6_PIN_MASK);
-        write_reg!(ral::iomuxc_gpr, iomuxc_gpr, GPR29, GPIO9_PIN_MASK);
-
-        // set directions for GPIO pins
-        modify_reg!(ral::gpio, gpio6, GDIR, |gdir| gdir | GPIO6_PIN_MASK);
-        modify_reg!(ral::gpio, gpio9, GDIR, |gdir| gdir | GPIO9_PIN_MASK);
-
         // enable SNVS HP clock gate because the RTC is on it
-        clock_gate::snvs_hp().set(ccm, clock_gate::ON);
+        clock_gate::snvs_hp().set(&mut peripherals::ccm(), clock_gate::ON);
 
         // enable RTC and wait for it to get set
+        let snvs = peripherals::snvs();
         modify_reg!(ral::snvs, snvs, HPCR, RTC_EN: RTC_EN_1);
         while read_reg!(ral::snvs, snvs, HPCR, RTC_EN != RTC_EN_1) {
             spin_loop();
