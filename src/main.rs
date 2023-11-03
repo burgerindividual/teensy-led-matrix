@@ -22,22 +22,18 @@ mod program;
 use core::arch::asm;
 
 use cortex_m::peripheral::syst::SystClkSource;
-
 use cortex_m::register::basepri;
 use embedded_alloc::Heap;
-use teensy4_bsp::board::{prepare_clocks_and_power};
+use teensy4_bsp::board::prepare_clocks_and_power;
 use teensy4_bsp::hal::iomuxc::into_pads;
-
-
 use teensy4_bsp::pins::t40::*;
 use teensy4_bsp::ral::{self, modify_reg};
 #[allow(unused_imports)]
 use teensy4_panic as _;
 
 use crate::button::Button;
-use crate::intrinsics::{init_heap};
+use crate::intrinsics::init_heap;
 use crate::led_driver::ScreenDriver;
-
 use crate::program::*;
 
 #[global_allocator]
