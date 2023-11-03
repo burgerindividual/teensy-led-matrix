@@ -238,7 +238,6 @@ impl Rain {
 }
 
 impl Program for Rain {
-    #[inline(always)]
     fn render(&mut self, driver: &mut ScreenDriver) {
         driver.framebuffer.back_buffer = Self::BASE_FRAME;
         driver.drive_mid_render();

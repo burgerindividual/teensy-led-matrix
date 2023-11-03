@@ -129,7 +129,6 @@ impl ScreenDriver {
         self.rtc_mask = frame_rate.rtc_mask();
     }
 
-    #[inline(always)]
     pub fn drive_mid_render(&mut self) {
         if DWT::cycle_count().wrapping_sub(self.delay_start_cycles) >= self.state.pre_delay_cycles()
         {
@@ -148,7 +147,6 @@ impl ScreenDriver {
         }
     }
 
-    #[inline(always)]
     pub fn drive_post_render(&mut self) {
         let mut frame_flipped = false;
 
@@ -168,7 +166,6 @@ impl ScreenDriver {
         }
     }
 
-    #[inline(always)]
     fn drive_clock_on(&mut self) {
         self.clock_pulse_bits = 0b1 << P3::OFFSET;
         self.clock_pulse_bits |= if self.current_shift_bit == 0 {
@@ -185,7 +182,6 @@ impl ScreenDriver {
         );
     }
 
-    #[inline(always)]
     fn drive_clock_off_data_out<const ALLOW_FRAME_FLIP: bool>(&mut self) -> bool {
         write_reg!(
             ral::gpio,

@@ -1,7 +1,7 @@
 use cortex_m::peripheral::DWT;
 use teensy4_bsp::board::ARM_FREQUENCY;
 use teensy4_bsp::pins::imxrt_iomuxc::gpio::Pin;
-use teensy4_bsp::pins::imxrt_iomuxc::{ErasedPad, Iomuxc};
+use teensy4_bsp::pins::imxrt_iomuxc::ErasedPad;
 use teensy4_bsp::pins::tmm::P5;
 use teensy4_bsp::ral::{self, read_reg};
 

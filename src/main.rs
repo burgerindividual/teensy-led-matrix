@@ -22,24 +22,22 @@ mod program;
 use core::arch::asm;
 
 use cortex_m::peripheral::syst::SystClkSource;
-use cortex_m::peripheral::DWT;
+
 use cortex_m::register::basepri;
 use embedded_alloc::Heap;
-use teensy4_bsp::board::{prepare_clocks_and_power, ARM_FREQUENCY};
+use teensy4_bsp::board::{prepare_clocks_and_power};
 use teensy4_bsp::hal::iomuxc::into_pads;
-use teensy4_bsp::pins::imxrt_iomuxc::gpio::Pin;
-use teensy4_bsp::pins::imxrt_iomuxc::{
-    alternate, clear_sion, configure, Config, DriveStrength, Hysteresis, OpenDrain, SlewRate, Speed,
-};
+
+
 use teensy4_bsp::pins::t40::*;
-use teensy4_bsp::ral::{self, modify_reg, read_reg, write_reg};
+use teensy4_bsp::ral::{self, modify_reg};
 #[allow(unused_imports)]
 use teensy4_panic as _;
 
 use crate::button::Button;
-use crate::intrinsics::{init_heap, yield_cycles};
+use crate::intrinsics::{init_heap};
 use crate::led_driver::ScreenDriver;
-use crate::pins::button_pin_setup;
+
 use crate::program::*;
 
 #[global_allocator]
@@ -82,7 +80,7 @@ fn main() -> ! {
     systick.enable_interrupt();
 
     let iomuxc = into_pads(peripherals::iomuxc());
-    let mut pins = from_pads(iomuxc);
+    let pins = from_pads(iomuxc);
     let mut erased_pins = pins.erase();
 
     let mut button = Button::new(&mut erased_pins[5]);

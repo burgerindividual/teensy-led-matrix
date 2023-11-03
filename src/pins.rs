@@ -1,6 +1,6 @@
-use core::ptr;
 
-use teensy4_bsp::hal::gpio::{Port, Trigger};
+
+
 use teensy4_bsp::pins::imxrt_iomuxc::gpio::Pin;
 use teensy4_bsp::pins::imxrt_iomuxc::*;
 use teensy4_bsp::pins::t40::*;

@@ -37,14 +37,12 @@ impl Framebuffer {
     pub const WIDTH: usize = 12;
     pub const HEIGHT: usize = 8;
 
-    #[inline(always)]
     pub fn flip(&mut self) {
         self.front_buffer.bit_target_lines = self.back_buffer.bit_lines;
     }
 }
 
 impl BackBuffer {
-    #[inline(always)]
     pub fn set_led(&mut self, led_x: usize, led_y: usize, color: Color) {
         debug_assert!(led_x < Framebuffer::WIDTH);
         debug_assert!(led_y < Framebuffer::HEIGHT);
@@ -66,7 +64,6 @@ impl BackBuffer {
         }
     }
 
-    #[inline(always)]
     pub fn try_set_led(&mut self, led_x: usize, led_y: usize, color: Color) {
         if led_x < Framebuffer::WIDTH && led_y < Framebuffer::HEIGHT {
             self.set_led(led_x, led_y, color);

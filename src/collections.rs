@@ -6,7 +6,6 @@ pub struct InlineVec<const LEN: usize, T> {
 }
 
 impl<const LEN: usize, T> InlineVec<LEN, T> {
-    #[inline(always)]
     pub fn push(&mut self, value: T) {
         unsafe {
             *self.data.get_mut(self.count).unwrap_unchecked() = MaybeUninit::new(value);
@@ -14,7 +13,6 @@ impl<const LEN: usize, T> InlineVec<LEN, T> {
         self.count += 1;
     }
 
-    #[inline(always)]
     pub fn clear(&mut self) {
         unsafe {
             for i in 0..self.count {
@@ -25,14 +23,12 @@ impl<const LEN: usize, T> InlineVec<LEN, T> {
         self.count = 0;
     }
 
-    #[inline(always)]
     pub fn is_empty(&self) -> bool {
         self.count == 0
     }
 
     /// # Safety
     /// The vec must not be empty before calling this function.
-    #[inline(always)]
     pub fn pop(&mut self) -> T {
         self.count -= 1;
         unsafe {
@@ -43,14 +39,12 @@ impl<const LEN: usize, T> InlineVec<LEN, T> {
         }
     }
 
-    #[inline(always)]
     pub fn get_slice(&self) -> &[T] {
         // SAFETY: count shouldn't ever be able to be incremented past LEN, and the contents should
         // be initialized
         unsafe { MaybeUninit::slice_assume_init_ref(self.data.get_unchecked(0..(self.count))) }
     }
 
-    #[inline(always)]
     pub fn get_slice_mut(&mut self) -> &mut [T] {
         // SAFETY: count shouldn't ever be able to be incremented past LEN, and the contents should
         // be initialized

@@ -15,7 +15,6 @@ extern "unadjusted" {
 
 pub const BATCH_SIZE: usize = 4;
 
-#[inline(always)]
 pub fn pwm_pulse_batched(
     current_values: &mut [u8; BATCH_SIZE],
     target_values: &[u8; BATCH_SIZE],
@@ -52,7 +51,6 @@ pub fn init_heap(heap: &Heap) {
     }
 }
 
-#[inline(always)]
 pub fn yield_cycles<const CYCLES: u64>() {
     const START_LOOP: u64 = 0xFFFFFF + SETUP_TIME_SINGLE + 2;
     // estimated using LLVM MCA
@@ -177,7 +175,6 @@ pub fn yield_cycles<const CYCLES: u64>() {
     }
 }
 
-#[inline(always)]
 fn systick_yield(cycles: u32) {
     let mut systick = peripherals::syst();
     systick.set_reload(cycles); // minus one here?
