@@ -21,6 +21,7 @@ mod program;
 
 use core::arch::asm;
 
+use cortex_m::interrupt;
 use cortex_m::peripheral::syst::SystClkSource;
 use cortex_m::register::basepri;
 use embedded_alloc::Heap;
@@ -41,11 +42,11 @@ static mut HEAP: Heap = Heap::empty();
 
 #[teensy4_bsp::rt::entry]
 fn main() -> ! {
-    // interrupt::disable();
-    unsafe {
-        asm!("CPSID f");
-        basepri::write(0);
-    }
+    interrupt::disable();
+    // unsafe {
+    //     asm!("CPSID f");
+    //     basepri::write(0);
+    // }
 
     unsafe {
         init_heap(&HEAP);
@@ -57,10 +58,13 @@ fn main() -> ! {
         &mut peripherals::dcdc(),
     );
 
+    // enable reading the current CPU cycle count
     peripherals::dcb().enable_trace();
     peripherals::dwt().enable_cycle_counter();
 
+    // force the cpu clock to continue running even when sleeping (used when waiting for event with sleep)
     modify_reg!(ral::iomuxc_gpr, peripherals::iomuxc_gpr(), GPR1, CM7_FORCE_HCLK_EN: CM7_FORCE_HCLK_EN_1);
+
     unsafe {
         let mut scb = peripherals::scb();
         scb.enable_icache();

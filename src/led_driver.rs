@@ -220,13 +220,15 @@ impl ScreenDriver {
             self.framebuffer
                 .front_buffer
                 .bit_target_lines
-                .get_unchecked_mut(self.current_shift_bit as usize)
+                .get_mut(self.current_shift_bit as usize)
+                .unwrap_unchecked()
         };
         let current_values = unsafe {
             self.framebuffer
                 .front_buffer
                 .bit_current_lines
-                .get_unchecked_mut(self.current_shift_bit as usize)
+                .get_mut(self.current_shift_bit as usize)
+                .unwrap_unchecked()
         };
 
         let mut gpio6_out_buffer = 0_u32;
