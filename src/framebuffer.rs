@@ -1,4 +1,4 @@
-use crate::color::Color;
+use crate::color::{AdjustedColor, Color};
 
 #[repr(u8)]
 pub enum ColorLines {
@@ -43,7 +43,21 @@ impl Framebuffer {
 }
 
 impl BackBuffer {
+    pub fn try_set_led(&mut self, led_x: usize, led_y: usize, color: Color) {
+        self.try_set_led_adjusted(led_x, led_y, color.adjust_for_led())
+    }
+
+    pub fn try_set_led_adjusted(&mut self, led_x: usize, led_y: usize, color: AdjustedColor) {
+        if led_x < Framebuffer::WIDTH && led_y < Framebuffer::HEIGHT {
+            self.set_led_adjusted(led_x, led_y, color);
+        }
+    }
+
     pub fn set_led(&mut self, led_x: usize, led_y: usize, color: Color) {
+        self.set_led_adjusted(led_x, led_y, color.adjust_for_led());
+    }
+
+    pub fn set_led_adjusted(&mut self, led_x: usize, led_y: usize, color: AdjustedColor) {
         debug_assert!(led_x < Framebuffer::WIDTH);
         debug_assert!(led_y < Framebuffer::HEIGHT);
 
@@ -56,17 +70,11 @@ impl BackBuffer {
             *(self
                 .bit_lines
                 .get_unchecked_mut(led_start_column + (ColorLines::Green as usize))
-                .get_unchecked_mut(led_x)) = ((color.g as u16 * 29) / 50) as u8;
+                .get_unchecked_mut(led_x)) = color.g;
             *(self
                 .bit_lines
                 .get_unchecked_mut(led_start_column + (ColorLines::Blue as usize))
-                .get_unchecked_mut(led_x)) = ((color.b as u16 * 29) / 70) as u8;
-        }
-    }
-
-    pub fn try_set_led(&mut self, led_x: usize, led_y: usize, color: Color) {
-        if led_x < Framebuffer::WIDTH && led_y < Framebuffer::HEIGHT {
-            self.set_led(led_x, led_y, color);
+                .get_unchecked_mut(led_x)) = color.b;
         }
     }
 }

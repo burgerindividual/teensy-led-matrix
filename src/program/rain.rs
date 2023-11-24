@@ -5,7 +5,7 @@ use rand::{RngCore, SeedableRng};
 use teensy4_bsp::hal::trng::{RetryCount, SampleMode, Trng};
 
 use crate::collections::InlineVec;
-use crate::color::Color;
+use crate::color::{AdjustedColor, Color};
 use crate::framebuffer::{BackBuffer, ColorLines, Framebuffer};
 use crate::led_driver::{FrameRate, ScreenDriver};
 use crate::peripherals;
@@ -43,8 +43,8 @@ impl Rain {
     pub const GROUND_LEVEL: usize = Framebuffer::WIDTH - 3; // inclusive
     pub const SPLASH_FREQUENCY: u32 = u32::MAX / (Framebuffer::WIDTH - Self::GROUND_LEVEL) as u32;
 
-    pub const RAINDROP_COLOR: Color = Color::from_rgb(200, 200, 200);
-    pub const GROUND_COLOR: Color = Color::from_rgb(36, 40, 43);
+    pub const RAINDROP_COLOR: AdjustedColor = Color::from_rgb(200, 200, 200).adjust_for_led();
+    pub const GROUND_COLOR: AdjustedColor = Color::from_rgb(36, 40, 43).adjust_for_led();
 
     pub const BASE_FRAME: BackBuffer = {
         let mut buffer = BackBuffer {
@@ -184,7 +184,7 @@ impl Rain {
             for drop in line.get_slice_mut() {
                 match &mut drop.state {
                     RaindropState::Falling => {
-                        driver.framebuffer.back_buffer.set_led(
+                        driver.framebuffer.back_buffer.set_led_adjusted(
                             falling_x,
                             drop.y,
                             Self::RAINDROP_COLOR,
@@ -194,12 +194,12 @@ impl Rain {
                         // these may be out of bounds, so only attempt to set the pixels
                         match frame {
                             0 => {
-                                driver.framebuffer.back_buffer.try_set_led(
+                                driver.framebuffer.back_buffer.try_set_led_adjusted(
                                     *splash_x - 1,
                                     drop.y - 1,
                                     Self::RAINDROP_COLOR,
                                 );
-                                driver.framebuffer.back_buffer.try_set_led(
+                                driver.framebuffer.back_buffer.try_set_led_adjusted(
                                     *splash_x - 1,
                                     drop.y + 1,
                                     Self::RAINDROP_COLOR,
@@ -207,12 +207,12 @@ impl Rain {
                                 *frame += 1;
                             }
                             1 => {
-                                driver.framebuffer.back_buffer.try_set_led(
+                                driver.framebuffer.back_buffer.try_set_led_adjusted(
                                     *splash_x,
                                     drop.y - 1,
                                     Self::RAINDROP_COLOR,
                                 );
-                                driver.framebuffer.back_buffer.try_set_led(
+                                driver.framebuffer.back_buffer.try_set_led_adjusted(
                                     *splash_x,
                                     drop.y + 1,
                                     Self::RAINDROP_COLOR,
